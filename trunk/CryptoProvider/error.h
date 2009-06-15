@@ -1,0 +1,14 @@
+
+
+#ifndef _ERROR_HEADER_FILE
+#define _ERROR_HEADER_FILE
+
+#define ERR_OK					0x01
+#define ERR_NO_MEMORY			0x02
+#define ERR_INVALID_POINTER		0x03
+#define ERR_INVALID_ARGS		0x04
+#define ERR_INVALID_LENGTH		0x05
+#define ERR_INVALID_CONTEXT		0x06
+
+
+#endif //_ERROR_HEADER_FILE

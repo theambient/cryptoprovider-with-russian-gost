@@ -74,6 +74,18 @@ std::ostream& operator<<(std::ostream& os, const IppsBigNumState* pBN);
 // вывод в поток ошибки интеловской библиотеки
 std::ostream& operator<<(std::ostream& os, const IppStatus ips);
 
+// получает строковое шестнадцатиричное представление числа
+// параметры:
+//		sBN		- адрес буффера куда будет записано 
+//					строковое представление.
+//		pBN		- длинное число, чье строковое представление ищется.
+// возвращает:
+//		true, если представление получено и успешно записаео в буффер.
+//		false в противном случае.
+// замечание:
+//		-	память автоматически не выделяется.
+bool bnConvertToString ( const IppsBigNumState *pBN, char* sBN );
+
 // освобождает память, занимаемую контекстом большого числа
 // параметры:
 //		pBN		- казатель число, контест которого освобождается
@@ -86,7 +98,7 @@ void bnRelease( IppsBigNumState *pBN );
 // параметры:
 //		sChar	- строковое шестнадцатеричное представление числа
 //		sOctet	- массив, содержащий побайтовое представление числа (octet strings)
-void strtoIpp8u(const char* sChar, Ipp8u* sOctet);
+void strtoIpp8u( Ipp8u* sOctet, const char* sChar);
 
 #endif
 

@@ -19,7 +19,7 @@ void digest(const BYTE *pBuf, const int iBufSize, BYTE *pDigestMsg, const Params
 //		pSignature	- указатель на буфер длины 512 бит, в который будет записано значение ЭЦП 
 //		params		- параметры схемы ЭЦП
 //		rand		- генератор случайных чисел
-void sign(const BYTE *pDigestMsg, const IppsBigNumState *pPrivateKey, BYTE *pSignature, const Params34102001 *params, Rand & rand);
+void sign(const BYTE *pDigestMsg, const IppsBigNumState *pPrivateKey, BYTE *pSignature, const PARAMS_GOST_SIGN *params, Rand & rand);
 
 // функция проверки ЭЦП по ГОСТ Р 34.10-2001
 // параметры:
@@ -27,7 +27,7 @@ void sign(const BYTE *pDigestMsg, const IppsBigNumState *pPrivateKey, BYTE *pSig
 //		pPublicKey	- указатель на открытый ключ пользователя (точку элл. кривой)
 //		pSignature	- указатель на буфер длины 512 бит, содержащий проверяемое значение ЭЦП
 //		params		- параметры схемы ЭЦП
-bool verify(const BYTE *pDigestMsg, const IppsECCPPointState *pPublicKey, const BYTE *pSignature, const Params34102001 *params);
+bool verify(const BYTE *pDigestMsg, const IppsECCPPointState *pPublicKey, const BYTE *pSignature, const PARAMS_GOST_SIGN *params);
 
 // генерирует ключевую пару
 // параметры:
@@ -37,4 +37,4 @@ bool verify(const BYTE *pDigestMsg, const IppsECCPPointState *pPublicKey, const 
 //		rand		- генератор случайных чисел
 // замечания:
 //		- память под ключи заранее выделять НЕ надо, она будет выделена автоматически
-bool genKeyPair(IppsECCPPointState *&pPublicKey, IppsBigNumState *&pPrivateKey, const Params34102001 &params, Rand & rand);
+bool genKeyPair(IppsECCPPointState **ppPublicKey, IppsBigNumState **ppPrivateKey, const PARAMS_GOST_SIGN *pParams, Rand *pRand);

@@ -3,19 +3,21 @@
 #define	PARAMS_HEADER_FILE
 
 #include "ippcp.h"
+#include <windows.h>
  
 const int iPrivateKeySize = 8;
 const int iPublicKeySize = 16;
 
-enum ParamSet34102001 { ParamSet1, ParamSet2 };
+#define PARAMSET_GOST_SIGN_1 0x01
 
-struct Params34102001 {
+struct PARAMS_GOST_SIGN {
+	DWORD dwParamSet;
 	int feBitSize;
 	IppsECCPState* pECC;
 	IppsBigNumState *pOrder, *pPrime;
 	IppsECCPPointState * pP;
-	Params34102001(ParamSet34102001 paramSet = ParamSet1);
-	~Params34102001();
+	PARAMS_GOST_SIGN(DWORD dwParamSet = PARAMSET_GOST_SIGN_1);
+	~PARAMS_GOST_SIGN();
 };
 
 struct Params341194 {

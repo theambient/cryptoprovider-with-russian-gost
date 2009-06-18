@@ -11,7 +11,7 @@ void digest(const byte* pBuf, const int iBufSize, byte *pDigest, const Params341
 	hash( pBuf, iBufSize, pDigest );
 }
 
-void sign(const byte *pDigestMsg, const IppsBigNumState *pPrivateKey, byte *pSignature, const Params34102001 *params, Rand & rand){
+void sign(const byte *pDigestMsg, const IppsBigNumState *pPrivateKey, byte *pSignature, const PARAMS_GOST_SIGN *params, Rand & rand){
 	IppsBigNumState *pE = bnNew( iBNSize, pDigestMsg );
 	ippsMod_BN( pE, params->pOrder, pE );
 	Ipp32u iResult;
@@ -68,7 +68,7 @@ void sign(const byte *pDigestMsg, const IppsBigNumState *pPrivateKey, byte *pSig
 	bnRelease( pR );
 }
 
-bool verify(const Ipp8u *pDigestMsg, const IppsECCPPointState *pPublicKey, const Ipp8u *pSignature, const Params34102001 *params){
+bool verify(const Ipp8u *pDigestMsg, const IppsECCPPointState *pPublicKey, const Ipp8u *pSignature, const PARAMS_GOST_SIGN *params){
 	IppsBigNumState *pE = bnNew( iBNSize, pDigestMsg );
 	ippsMod_BN( pE, params->pOrder, pE );
 	Ipp32u iResult;
@@ -122,10 +122,10 @@ bool verify(const Ipp8u *pDigestMsg, const IppsECCPPointState *pPublicKey, const
 }
 
 
-bool genKeyPair(IppsECCPPointState *&pPublicKey, IppsBigNumState *&pPrivateKey, const Params34102001 &params, Rand & rand){
+bool genKeyPair(IppsECCPPointState **ppPublicKey, IppsBigNumState **ppPrivateKey, const PARAMS_GOST_SIGN *pParams, Rand *pRand){
 	
-	pPrivateKey = bnNew( iBNSize);
-	pPublicKey = eccPointNew( params.pECC );
-	IppStatus res = ippsECCPGenKeyPair( pPrivateKey, pPublicKey, params.pECC, ippsPRNGen, rand.getPRNG() );
+	*ppPrivateKey = bnNew( iBNSize);
+	*ppPublicKey = eccPointNew( pParams->pECC );
+	IppStatus res = ippsECCPGenKeyPair( *ppPrivateKey, *ppPublicKey, pParams->pECC, ippsPRNGen, pRand->getPRNG() );
 	return res == ippStsNoErr;
 }

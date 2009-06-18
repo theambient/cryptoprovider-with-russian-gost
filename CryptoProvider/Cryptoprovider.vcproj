@@ -21,6 +21,7 @@
 			OutputDirectory="Debug"
 			IntermediateDirectory="Debug"
 			ConfigurationType="2"
+			UseOfMFC="0"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -41,11 +42,11 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="$(ProjectDir)"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;_IMPLEMENT_INTEL"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;_IMPLEMENT_INTEL; _CRT_SECURE_NO_WARNINGS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				SmallerTypeCheck="false"
-				RuntimeLibrary="3"
+				RuntimeLibrary="1"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"
@@ -70,7 +71,7 @@
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				TargetMachine="1"
-				Profile="true"
+				Profile="false"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -194,6 +195,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\csp\csp-helpers.h"
+				>
+			</File>
+			<File
 				RelativePath=".\csp\csp-services.h"
 				>
 			</File>
@@ -202,11 +207,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\ecc\ecc.h"
+				RelativePath=".\ecc\intel\ecc.h"
 				>
 			</File>
 			<File
-				RelativePath=".\ecc\intel\ecc.h"
+				RelativePath=".\ecc\ecc.h"
 				>
 			</File>
 			<File
@@ -230,11 +235,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\rand\rand.h"
+				RelativePath=".\rand\intel\rand.h"
 				>
 			</File>
 			<File
-				RelativePath=".\rand\intel\rand.h"
+				RelativePath=".\rand\rand.h"
 				>
 			</File>
 			<File
@@ -242,15 +247,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\gost\stdafx.h"
-				>
-			</File>
-			<File
-				RelativePath=".\gost\targetver.h"
-				>
-			</File>
-			<File
 				RelativePath=".\types.h"
+				>
+			</File>
+			<File
+				RelativePath=".\csp\ui.h"
 				>
 			</File>
 		</Filter>
@@ -279,6 +280,10 @@
 			</File>
 			<File
 				RelativePath=".\csp\csp-debug.c"
+				>
+			</File>
+			<File
+				RelativePath=".\csp\csp-helpers.cpp"
 				>
 			</File>
 			<File
@@ -318,7 +323,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\gost\stdafx.cpp"
+				RelativePath=".\csp\ui.cpp"
 				>
 			</File>
 		</Filter>

@@ -8,12 +8,13 @@ extern "C" {
 
 #include <windows.h>
 #include <wincrypt.h>
+#include <cspdk.h>
 
 /* define some CSP constants*/
 
 #define CSP_NAME	"IRZ CSP"
 #define CSP_VERSION 0x0001
-#define CSP_PROVTYPE = 0x4b
+#define CSP_PROVTYPE 0x4b
 
 #define GOST_SIGN_NAME "GOST R 34.10-2001"
 #define GOST_SIGN_MIN_BITS 256
@@ -34,7 +35,7 @@ extern "C" {
 #define GOST_CRYPT_BITS 256
 #define GOST_CRYPT_OID ""
 #define GOST_CRYPT_OID_LEN 0
-#define GOST_KEYX_NAME "GOST 28147-89 Key Exchange"
+#define GOST_KEYX_NAME "GOST 28147-89 KeyX"
 #define GOST_KEYX_MIN_BITS 256
 #define GOST_KEYX_MAX_BITS 256
 #define GOST_KEYX_BITS 256
@@ -146,7 +147,7 @@ typedef struct _PROV_CTX {
 	BOOL			bSilent;		/**< TRUE if CRYPT_SILENT flag has been set*/
 	
 	HWND			uiHandle;		/**< Windows handle to interact with the user.*/
-	BOOL			bCachedPIN		/**< TRUE if PIN has been cached*/
+	BOOL			bCachedPIN;		/**< TRUE if PIN has been cached*/
 } PROV_CTX;
 
 
@@ -1373,73 +1374,6 @@ CPDuplicateKey(
     OUT HCRYPTKEY *phKey);
 
 
-
-/** \brief Return the wanted handler index in the given granted handlers list.
- *
- *  \param grantedHandles   Pointer to the beginning of the granted handlers
- *                          tab.
- *  \param  max_len         The maximum lenth of the granted handlers list.
- *  \param wantedHandle    The wanted handler.
- *
- *  \return An integer from 0 to max_len-1 if a granted context is found.
- *          Negative value if not.
- *  \ingroup    SPInternal
- */
-int findGrantedHandle(HANDLE *grantedHandles, int max_len, HANDLE wantedHandle);
-
-/** \brief Grants a cryptographic handle.
- *
- *  Used to remember granted handlers.
- *
- *  \param  grantedHandles Pointer to the granted handler list pointer.
- *  \param  lenth   Pointer to the lenth of the list.
- *  \param  lenth Maximum authorized lenth of the list. 0 means unlimited.
- *  \param  handle  The handle to grant.
- *
- *  \return TRUE if everything went OK.
- *  \ingroup    SPInternal
- */
-BOOL grantHandle(HANDLE **grantedHandles, int *lenth,
-                  HANDLE handle);
-
-/** \brief Revokes a granted cryptographic handle.
- *
- *  Used to forget a granted handle.
- *
- *  \param  handle   Handler to the provided context to forget.
- *  \param  lenth   Lenth of the granted handles list.
- *  \param  grantedHandles  Pointer to the granted handles list.
- *
- *  \return TRUE if everything went OK.
- *  \ingroup    SPInternal
- */
-BOOL revokeHandle(HANDLE **grantedHandles, int *lenth, HANDLE handle);
-
-/** \brief Check if a crypto handler was provided.
- *
- *  Check if the given handler is really a valid cryptographic context handler.
- *
- *  \param  lenth   Number of granted handles.
- *  \param  grantedHandles  Pointer to the granted handles list.
- *  \param  handle  Handle to check.
- *
- *  \return TRUE if the handler was granted by CSP-eleven, FALSE if not.
- *  \ingroup    SPInternal
- */
-BOOL grantedHandle(HANDLE *grantedHandles, int lenth, HANDLE handle);
-
-/** \brief Return the algId csp11 ALGORITHM.
- *
- *  Browse the algorithms table and get the wanted definition.
- *  
- *  \param  algId   The wanted CAPI algorithm ID.
- *  \param  algorithm The corresponding ALGORITHM structure.
- *
- *  \return TRUE if algorithm found, FALSE if not.
- *
- *  \ingroup SPInternal
- */
-BOOL getAlgorithm(ALG_ID algId, ALGORITHM *algorithm);
 
 /** \brief Return size of produced hash value in bytes.
  *  

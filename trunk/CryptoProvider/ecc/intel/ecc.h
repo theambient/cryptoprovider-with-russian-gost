@@ -29,12 +29,31 @@ IppsECCPPointState* eccPointNew( IppsECCPState *pECC);
 
 void eccPointRelease( IppsECCPPointState* pPoint);
 
-void eccPointToOctet( IppsECCPPointState *pPoint, Ipp8u *pRawKey, IppsECCPState *pECC );
+// получает шестнадцатиричное представление точки через ее координаты в форме (X||Y)
+//		где через X и Y обозначаются ссответственно x- и y-координаты, 
+//		а || - операция конкатенации.
+// параметры:
+//		pPoint	- точка чье представление ищется.
+//		pRawKey - буфер для сохранения представления.
+//	замечания:
+//		- не происходит выделения памяти.
+void eccPointToOctet( const IppsECCPPointState *pPoint, Ipp8u *pRawKey );
+
+// получает шестнадцатиричное СТРОКОВОЕ представление точки через ее координаты в форме (X||Y)
+//		где через X и Y обозначаются ссответственно x- и y-координаты, 
+//		а || - операция конкатенации.
+// параметры:
+//		pPoint	- точка чье представление ищется.
+//		sPoint - буфер для сохранения представления.
+//	замечания:
+//		- не происходит выделения памяти.
+void eccPointToString( const IppsECCPPointState *pPoint, char *sPoint );
 
 // создает точку эллиптической кривой из ключевого материала - 
 // битового вектора, содержащего координаты этой точки.
 // параметры:
-//		baseData		- ключевой материал: битовый вектор длины keyLengt, hсодержащий координаты точки (X||Y)
+//		baseData		- ключевой материал: битовый вектор длины keyLengt, содержащий координаты точки (X||Y)
 //		byteDataLength	- длина в байтах ключеого материала
 //		pECC			- контекст эллиптической кривой
 IppsECCPPointState* eccPointNew( const Ipp8u* baseData, const int byteDataLength, IppsECCPState* pECC);
+

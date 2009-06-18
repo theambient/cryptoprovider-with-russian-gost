@@ -5,6 +5,19 @@
 
 // common constants
 
+// GOST R 34.10-2001 key length 
+// Private key hex representation length in chars
+#define PRIVATEKEY_CHAR_LEN 64
+// byte length
+#define PRIVATEKEY_BYTE_LEN 64
+
+// Public key hex representation length in chars
+#define PUBLICKEY_CHAR_LEN 128
+// byte length
+#define PUBLICKEY_BYTE_LEN 128
+
+// GOST R 34.11-94 hash Length
+#define HASH_BYTE_LEN 32
 
 
 // length in bytes of GOST R 34.11-94 algorithm hash-function

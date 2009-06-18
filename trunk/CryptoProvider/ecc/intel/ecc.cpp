@@ -62,13 +62,23 @@ void eccPointRelease( IppsECCPPointState* pPoint){
 }
 
 
-void eccPointToOctet( IppsECCPPointState *pPoint, Ipp8u *pRawKey, IppsECCPState *pECC ){
+void eccPointToOctet( const IppsECCPPointState *pPoint, Ipp8u *pRawKey ){
 	IppsBigNumState *pX = bnNew( iBNSize );
 	IppsBigNumState *pY = bnNew( iBNSize );
-	ippsECCPGetPoint( pX, pY, pPoint, pECC );
+	ippsECCPGetPoint( pX, pY, pPoint, NULL );
 	ippsGetOctString_BN( pRawKey, iBNSize*4, pX );
 	ippsGetOctString_BN( pRawKey + iBNSize*4, iBNSize*4, pY );
 }
+
+void eccPointToString( const IppsECCPPointState *pPoint, char *sPoint ){
+	IppsBigNumState *pX = bnNew( iBNSize );
+	IppsBigNumState *pY = bnNew( iBNSize );
+	ippsECCPGetPoint( pX, pY, pPoint, NULL );
+	bnConvertToString( pX, sPoint );
+	bnConvertToString(  pY, sPoint + iBNSize*8 );
+}
+
+
 
 IppsECCPPointState* eccPointNew( const Ipp8u *baseData, const int byteDataLen, IppsECCPState* pECC){
 	if ( byteDataLen%2 == 1 ){

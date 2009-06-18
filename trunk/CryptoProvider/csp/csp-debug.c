@@ -70,17 +70,17 @@ BOOL    fdebug(const char *message)
     /** - Go to the end of the file.*/
     dwPos = SetFilePointer(debugFileHandle, 0, NULL, FILE_END);
     /** - Lock at the end of file, on length of message +1.*/
-    if(!LockFile(debugFileHandle,dwPos,0, strlen(message),0))
+    if(!LockFile(debugFileHandle,dwPos,0, (DWORD)strlen(message),0))
     {
         return FALSE;
     }
     /** - Write the message to the file.*/
-    if(!WriteFile(debugFileHandle, message, strlen(message), &bytesWritten, NULL))
+    if(!WriteFile(debugFileHandle, message, (DWORD)strlen(message), &bytesWritten, NULL))
     {
-        UnlockFile(debugFileHandle, dwPos, 0, strlen(message),0);
+        UnlockFile(debugFileHandle, dwPos, 0, (DWORD)strlen(message),0);
         return FALSE;
     }
     /** - Unlock the file.*/
-    return UnlockFile(debugFileHandle, dwPos, 0, strlen(message),0);
+    return UnlockFile(debugFileHandle, dwPos, 0, (DWORD)strlen(message),0);
 }
 

@@ -4,10 +4,11 @@
 #include "bignum/bignum.h"
 #include <iostream>
 
-Params34102001::Params34102001( ParamSet34102001 paramSet){
-	switch( paramSet ){
-		case ParamSet1:
+PARAMS_GOST_SIGN::PARAMS_GOST_SIGN( DWORD _dwParamSet){
+	switch( _dwParamSet ){
+		case PARAMSET_GOST_SIGN_1:
 		default:{ // ParamSet1
+			dwParamSet = _dwParamSet;
 			int eccSize;
 			const int size = 8;
 			ippsBigNumGetSize(8, &feBitSize);
@@ -45,7 +46,7 @@ Params34102001::Params34102001( ParamSet34102001 paramSet){
 	}
 }
 
-Params34102001::~Params34102001(){
+PARAMS_GOST_SIGN::~PARAMS_GOST_SIGN(){
 	delete[] (Ipp8u*) pECC;
 	delete[] (Ipp8u*) pOrder;
 	delete[] (Ipp8u*) pPrime;

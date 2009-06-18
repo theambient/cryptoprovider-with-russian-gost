@@ -11,9 +11,23 @@ inline int chartobyte ( const char c ){
 		return i - int('A')+0xA;
 	else
 		return i - int('0');
-
-
 }
+
+inline char bytetochar( const int n ){
+
+	static char xlat[16] = {
+		'0', '1', '2', '3',
+		'4', '5', '6', '7',
+		'8', '9', 'A', 'B',
+		'C', 'D', 'E', 'F'
+	};
+
+	if ( n > 15)
+		throw std::invalid_argument( "bytetochar: the supplied value of argument n is invalid - n > 15" );	
+
+	return xlat[n];
+}
+
 // конвертирует строку с шестнадцатиричным представлением числа 
 // в 'octet string' - несимвольную строку значений.
 void strtoIpp8u(const char* sChar, Ipp8u* sOctet){
@@ -169,6 +183,26 @@ void bnSub(IppsBigNumState* pA, IppsBigNumState* pB, IppsBigNumState* pRes ){
 }
 
 
+bool bnConvertToString ( const IppsBigNumState *pBN, char* sBN ){
+	// size of Big Number
+	int size;
+	Ipp32u res = ippsGetSize_BN(pBN, &size);
+	if ( res != ippStsNoErr )
+		std::cerr << res << std::endl;
+	// extract Big Number value and convert it to the string presentation
+	Ipp8u* bnValue = new Ipp8u [size*4+4];
+	res = ippsGetOctString_BN(bnValue, size*4, pBN);
+	if ( res != ippStsNoErr ){
+		std::cerr << res << std::endl;
+		return false;
+	}
+	// save representation
+	for(int i=0; i<size*4; i++)
+		sBN[i] = bytetochar(bnValue[i]);
+	delete[] bnValue;	
+	return true;
+}
+
 std::ostream& operator<<(std::ostream& os, const IppsBigNumState* pBN){
 	// size of Big Number
 	int size;
@@ -181,8 +215,8 @@ std::ostream& operator<<(std::ostream& os, const IppsBigNumState* pBN){
 	if ( res != ippStsNoErr )
 		std::cerr << res << std::endl;
 	// type value
-	for(int n=0; n<size*4; n++)
-		os<< std::setfill('0') << std::setw(2) << std::hex <<(int)bnValue[n];
+	for(int i=0; i<size*4; i++)
+		os<< std::setfill('0') << std::setw(2) << std::hex <<(int)bnValue[i];
 	delete[] bnValue;	
 	return os;
 }

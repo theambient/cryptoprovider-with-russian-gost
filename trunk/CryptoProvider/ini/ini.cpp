@@ -67,7 +67,7 @@ BOOL iniGetString(HANDLE hFile,
 		delete[] szData;
 		return FALSE;
 	}
-	DWORD dwLen = szValEnd - szValBegin-1;
+	DWORD dwLen = (DWORD) (szValEnd - szValBegin)-1;
 	if ( dwLen > dwBufLen ){
 		delete[] szData;
 		return FALSE;

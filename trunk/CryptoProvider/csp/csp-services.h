@@ -2,6 +2,7 @@
 #ifndef _CSPSERVICES_HEADER_FILE
 #define _CSPSERVICES_HEADER_FILE
 
+
 #include "csp.h"
 
 /*	\brief Open a container with the name szContainer.
@@ -13,7 +14,7 @@
  *		more in last error.
  *
  */
-BOOL OpenContainer( PROV_CTX* pProvCtx, LPSTR szContainer );
+BOOL OpenContainer( PROV_CTX* pProvCtx, LPCSTR szContainer );
 
 /*	\brief release the container context.
  *	
@@ -57,19 +58,7 @@ DWORD getKeyLen( ALG_ID algid );
  *		more in last error.
  *
  */
-releaseKey( PROV_CTX *pProvCtx, KEY_INFO *pKey );
-
-/*	\brief	Set the hash value in hash object context.
- *	
- *	\param	pProvCtx	pointer to a CSP context.
- *	\param	pHash		pointer to hash context.
- *	\param	pbHashValue	value of a hash to be set.
- *
- *	\return	TRUE if hash has been set, FALSE otherwise;
- *		more in last error.
- *
- */
-BOOL setHash( PROV_CTX* pProvCtx, HASH_INFO *pHash, BYTE *pbHashValue);
+BOOL releaseKey( PROV_CTX *pProvCtx, KEY_INFO *pKey );
 
 /*	\brief	Get public key len with all additional context to be exported.
  *	
@@ -81,7 +70,7 @@ BOOL setHash( PROV_CTX* pProvCtx, HASH_INFO *pHash, BYTE *pbHashValue);
  *		more in last error.
  *
  */
-getPubKeyLen( PROV_CTX *pProvCtx, KEY_INFO *pKey, DWORD *pdwLen );
+BOOL getPubKeyLen( PROV_CTX *pProvCtx, KEY_INFO *pKey, DWORD *pdwLen );
 
 /*	\brief	Export the public key from the key.
  *	
@@ -111,7 +100,7 @@ BOOL exportPubKey(IN PROV_CTX* pProvCtx,
  *		more in last error
  *
  */
-importPubKey(PROV_CTX* pProvCtx,
+BOOL importPubKey(PROV_CTX* pProvCtx,
 			 KEY_INFO* pKey,
 			 BYTE* pbData,
 			 DWORD dwDataLen );
@@ -121,6 +110,7 @@ importPubKey(PROV_CTX* pProvCtx,
  *	\param	pProvCtx	pointer to a CSP context.
  *	\param	pbHashValue	buffer containing pure hash with no context.
  *	\param	dwHashSize	size of the buffer pbHashValue.
+ *	\param	pUserKey	user key (should contain private).
  *	\param	pbSignature buffer where signature will be stored.
  *	\param	pcbSigLen	pointer to address where actual signature 
  *							length in bytes will be stored.
@@ -129,9 +119,10 @@ importPubKey(PROV_CTX* pProvCtx,
  *		more in last error.
  *
  */
-signHash(PROV_CTX *pProvCtx, 
+BOOL signHash(PROV_CTX *pProvCtx, 
 		 BYTE* pbHashValue,
 		 DWORD dwHashSize,
+		 KEY_INFO *pKey,
 		 BYTE* pbSignature,
 		 DWORD* pcbSigLen );
 
@@ -141,17 +132,17 @@ signHash(PROV_CTX *pProvCtx,
  *	\param	pbHashValue	buffer containing pure hash with no context.
  *	\param	dwHashSize	size of the buffer pbHashValue.
  *	\param	pPubKey		public key to verify the signature.
- *	\param	pbSignature buffer where signature will be stored.
+ *	\param	pbSignature buffer where signature is stored.
  *
  *	\return	TRUE if verifying succeeded, FALSE otherwise;
  *		more in last error.
  *
  */
-verifyHash(PROV_CTX *pProvCtx,
+BOOL verifyHash(PROV_CTX *pProvCtx,
 		   BYTE* pbHashValue, 
 		   DWORD dwHashSize, 
 		   KEY_INFO *pPubKey, 
-		   BYTE* pbSignature, 
+		   const BYTE* pbSignature, 
 		   DWORD cbSigLen );
 
 /*	\brief	Generate random data of requested length.
@@ -164,7 +155,7 @@ verifyHash(PROV_CTX *pProvCtx,
  *		more in last error.
  *
  */
-genRandom(PROV_CTX *pProvCtx, 
+BOOL genRandom(PROV_CTX *pProvCtx, 
 		  DWORD dwLen,
 		  BYTE* pbData );
 
@@ -192,7 +183,7 @@ BOOL createHash(PROV_CTX* pProvCtx, HASH_INFO* pHash );
  */
 BOOL updateHash(PROV_CTX *PRpProvCtx,
 				HASH_INFO *pHash,
-				BYTE *pbData,
+				const BYTE *pbData,
 				DWORD cbDataLen );
 
 /*	\brief	Finilize and get hash value.
@@ -210,6 +201,30 @@ BOOL getHash( PROV_CTX *pProvCtx,
 				HASH_INFO *pHash,
 				BYTE *pbHashValue,
 				DWORD *pcbHashLen );
+
+/*	\brief	Set the hash value in hash object context.
+ *	
+ *	\param	pProvCtx	pointer to a CSP context.
+ *	\param	pHash		pointer to hash context.
+ *	\param	pbHashValue	value of a hash to be set.
+ *
+ *	\return	TRUE if hash has been set, FALSE otherwise;
+ *		more in last error.
+ *
+ */
+BOOL setHash( PROV_CTX* pProvCtx, HASH_INFO *pHash, const BYTE *pbHashValue);
+
+/*	\brief	release hash object service information but leave the HASH_INFO object.
+ *	
+ *	\param	pProvCtx	pointer to a CSP context.
+ *	\param	pHash		Hash context.
+ *
+ *	\return	TRUE if data has been feeded, FALSE otherwise;
+ *		more in last error.
+ *	
+ */
+BOOL releaseHash( PROV_CTX *pProvCtx,
+				HASH_INFO *pHash );
 
 /*	\brief	Read user (signature) key  from container.
  *	

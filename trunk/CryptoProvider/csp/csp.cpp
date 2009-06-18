@@ -19,10 +19,12 @@
 #include <wincrypt.h>
 #include <cspdk.h>
 #include <stdexcept>
+#include <iostream>
 
 #include "csp/csp-services.h"
 #include "csp/csp.h"
 #include "csp/csp-debug.h"
+#include "ui.h"
 
 
 /*	\brief supported algorithms database
@@ -31,11 +33,13 @@
  *
  */
 PROV_ENUMALGS_EX algorithms[] = {
-	{CALG_GOST_SIGN, GOST_SIGN_BITS, GOST_SIGN_MIN_BITS, GOST_SIGN_MAX_BITS, 0, strlen(GOST_SIGN_NAME), GOST_SIGN_NAME, strlen(GOST_SIGN_NAME), GOST_SIGN_NAME },
-	{CALG_GOST_KEYX, GOST_KEYX_BITS, GOST_KEYX_MIN_BITS, GOST_KEYX_MAX_BITS, 0, strlen(GOST_KEYX_NAME), GOST_KEYX_NAME, strlen(GOST_KEYX_NAME), GOST_KEYX_NAME },	
-	{CALG_GOST_CRYPT, GOST_CRYPT_BITS, GOST_CRYPT_MIN_BITS, GOST_CRYPT_MAX_BITS, 0, strlen(GOST_CRYPT_NAME), GOST_CRYPT_NAME, strlen(GOST_CRYPT_NAME), GOST_CRYPT_NAME },	
-	{CALG_GOST_HASH, GOST_HASH_BITS, GOST_HASH_MIN_BITS, GOST_HASH_MAX_BITS, 0, strlen(GOST_HASH_NAME), GOST_HASH_NAME, strlen(GOST_HASH_NAME), GOST_HASH_NAME }
+	{CALG_GOST_SIGN, GOST_SIGN_BITS, GOST_SIGN_MIN_BITS, GOST_SIGN_MAX_BITS, 0, (DWORD)strlen(GOST_SIGN_NAME), GOST_SIGN_NAME, (DWORD) strlen(GOST_SIGN_NAME), GOST_SIGN_NAME },
+	{CALG_GOST_KEYX, GOST_KEYX_BITS, GOST_KEYX_MIN_BITS, GOST_KEYX_MAX_BITS, 0, (DWORD)strlen(GOST_KEYX_NAME), GOST_KEYX_NAME, (DWORD) strlen(GOST_KEYX_NAME), GOST_KEYX_NAME },	
+	{CALG_GOST_CRYPT, GOST_CRYPT_BITS, GOST_CRYPT_MIN_BITS, GOST_CRYPT_MAX_BITS, 0, (DWORD)strlen(GOST_CRYPT_NAME), GOST_CRYPT_NAME, (DWORD) strlen(GOST_CRYPT_NAME), GOST_CRYPT_NAME },	
+	{CALG_GOST_HASH, GOST_HASH_BITS, GOST_HASH_MIN_BITS, GOST_HASH_MAX_BITS, 0, (DWORD)strlen(GOST_HASH_NAME), GOST_HASH_NAME, (DWORD) strlen(GOST_HASH_NAME), GOST_HASH_NAME }
 }; /**< Supported algorithms database.*/
+
+extern const unsigned algorithms_count = sizeof(algorithms);
 
 HINSTANCE g_hModule = NULL; /**< DLL Instance. */
 
@@ -107,6 +111,9 @@ CPAcquireContext(
 {
 	PROV_CTX *pProvCtx = NULL;
 	CONTAINER_INFO *pContainer = NULL;
+	char debug[255];
+
+	HWND FuncReturnedhWnd = 0;
 
 	DEBUG(1,"_-_-_-_-_-_-_-_-Acquiiring Context-_-_-_-_-_-_-_-_-\n");
     /** - Test if dwFlags are correct */
@@ -168,7 +175,7 @@ CPAcquireContext(
 		/** - Transmit the csp instance handle to service.*/
 		setCSPInstance(g_hModule);
 
-		phProv = ( HCRYPTPROV ) pProvCtx;
+		phProv = ( HCRYPTPROV* ) pProvCtx;
 		// if CRYPT_VERIFYCONTEXT is set container shouldn't be open.
 		if ( !(dwFlags & CRYPT_VERIFYCONTEXT) ){
 			DEBUG( 3, "Openning container.\n" );
@@ -183,19 +190,19 @@ CPAcquireContext(
 			if ( dwFlags & CRYPT_NEWKEYSET ){
 				DEBUG( 4, "Creating new keyset.\n" );
 
-				HANDLE hKey = NULL;
+				HCRYPTKEY hKey = NULL;
 				// Check firstly for a existing keyset.
 				if ( CPGetUserKey( *phProv, AT_SIGNATURE, &hKey ) ){
 					// if found - release resources and exit with error.
-					CPDestroyKey( pProvCtx, hKey );
-					CPReleaseContext( pProvCtx, 0 )
+					CPDestroyKey( *phProv, hKey );
+					CPReleaseContext( *phProv, 0 );
 						SetLastError( NTE_EXISTS );
 					return FALSE;
 				}
 				else {
 					// define flags for the creating key
 					DWORD dwGenKeyFlags;
-					if ( !dwFlags & CRYPT_SILENT )
+					if ( !(dwFlags & CRYPT_SILENT) )
 						dwGenKeyFlags = CRYPT_USER_PROTECTED;
 
 					// create a key in proper
@@ -218,12 +225,9 @@ CPAcquireContext(
 		DEBUG(1,"-----------------Context acquired-----------------\n");
 		return TRUE;
 	}
-	catch( std::bad_alloc & e){
+	catch( std::bad_alloc ){
 		// Release resources.
-		CPReleaseContext( *HANDLE(pProvCtx) )
-		// log the crash
-		std::cerr << e.what() << std::endl;
-
+		CPReleaseContext( HCRYPTPROV(pProvCtx), 0 );
 		//exit
 		SetLastError( NTE_NO_MEMORY );
 		return FALSE;
@@ -333,7 +337,7 @@ CPGenKey(
 
 				// Generate key pair.
 				if (!genKeyPair( pProvCtx, pKey ) ){
-					CPDestroyKey( hProv, HANDLE(pKey) );
+					CPDestroyKey( hProv, HCRYPTKEY(pKey) );
 					return FALSE;
 				}
 				break;
@@ -517,7 +521,7 @@ CPGetKeyParam(
 					return FALSE;
 				}
 				// Fill with permissions.
-				memcpy(pbData, pKey->permissions, sizeof(DWORD));
+				*LPDWORD(pbData) = pKey->permissions;
 				break;
 			case KP_KEYLEN:
 				// Test if data length is length enough.*/
@@ -526,7 +530,7 @@ CPGetKeyParam(
 					return FALSE;
 				}
 				// Fill with length.
-				memcpy(pbData, pKey->length, sizeof(DWORD));
+				*LPDWORD(pbData) = pKey->length ;
 				break;
             case KP_ALGID:
                 // Test if data length is length enough.*/
@@ -536,7 +540,7 @@ CPGetKeyParam(
                     return FALSE;
                 }
                 // Fill with ALG_ID.
-                memcpy(pbData, &(pKeyInfo->algId),sizeof(pcbDataLen));
+                *LPDWORD(pbData) = pKey->algId;
                 break;
 			case KP_BLOCKLEN:
 				// Test if data length is length enough.*/
@@ -545,7 +549,7 @@ CPGetKeyParam(
                     return FALSE;
                 }
 				// Switch algs. Not all algs support encryption. 
-				switch ( pKeyInfo->algId ){
+				switch ( pKey->algId ){
 					case CALG_GOST_SIGN:
 					case CALG_GOST_KEYX:
 						SetLastError( NTE_BAD_TYPE );
@@ -639,7 +643,7 @@ CPGetProvParam(
 			break;
 		case PP_CONTAINER:
 			if ( pProvCtx->pContainer->cName != NULL )
-				dwLen = strlen(pProvCtx->pContainer->cName) + 1;
+				dwLen = (DWORD) strlen(pProvCtx->pContainer->cName) + 1;
 			else
 				dwLen = 0;
 			break;
@@ -650,7 +654,7 @@ CPGetProvParam(
 			dwLen = sizeof( DWORD );
 			break;
 		case PP_NAME:
-			dwLen = strlen( CSP_NAME ) + 1;
+			dwLen = (DWORD) strlen( CSP_NAME ) + 1;
 			break;
 
 		case PP_USE_HARDWARE_RNG:
@@ -685,19 +689,19 @@ CPGetProvParam(
 					bFirstCall = false;
 				}
 
-				static index; //< enumerating index
+				static unsigned index; //< enumerating index
 				if ( dwFlags & CRYPT_FIRST ){
 					index = 0;
 				} else if (index >= sizeof(algorithms)){
 						SetLastError( NTE_NO_MORE_ITEMS );
 						return FALSE;
 				}
-				PROV_ENUMALGS_EX *pAlgEx = algorithms[index];
+				PROV_ENUMALGS_EX *pAlgEx = &algorithms[index];
 				PROV_ENUMALGS *algInfo = (PROV_ENUMALGS*) pbData;
 				algInfo->aiAlgid = pAlgEx->aiAlgid;
 				algInfo->dwBitLen = pAlgEx->dwDefaultLen;
 				algInfo->dwNameLen = pAlgEx->dwNameLen;
-				strncpy( algInfo.szName, pAlgEx->szName, 20 );
+				strncpy( algInfo->szName, pAlgEx->szName, 20 );
 				index++;
 				break;
 							  }
@@ -713,14 +717,14 @@ CPGetProvParam(
 					bFirstCall = false;
 				}
 
-				static index; //< enumerating index
+				static unsigned index; //< enumerating index
 				if ( dwFlags & CRYPT_FIRST ){
 					index = 0;
 				} else if (index >= sizeof(algorithms)){
 						SetLastError( NTE_NO_MORE_ITEMS );
 						return FALSE;
 				}
-				memcpy( pbData, algorithms[index], sizeof( PROV_ENUMALGS_EX ) );
+				memcpy( pbData, &algorithms[index], sizeof( PROV_ENUMALGS_EX ) );
 				index++;
 				break;
 								 }
@@ -732,7 +736,7 @@ CPGetProvParam(
 				*pbData = CRYPT_IMPL_SOFTWARE;
 				break;
 			case PP_NAME:
-				strcpy( pbData, CSP_NAME );
+				memcpy( pbData, CSP_NAME, strlen(CSP_NAME)+1 );
 				break;
 			case PP_VERSION:
 				*LPDWORD( pbData ) = CSP_VERSION;
@@ -790,7 +794,7 @@ CPSetHashParam(
 		return FALSE;
 	}
 
-	switch ( dwParams ){
+	switch ( dwParam ){
 		case HP_HASHVAL:
 			// import external hashvalue into hash container.
 			// assume that algorithm correctnes has ben checked by caller.
@@ -844,7 +848,7 @@ CPGetHashParam(
 		return FALSE;
 	}
 	DWORD dwLen; //< local copy of the appropriate buffer length
-	switch ( dwParams ){
+	switch ( dwParam ){
 		case HP_HASHVAL:
 			dwLen = pHash->dwHashLen;
 			break;
@@ -867,7 +871,7 @@ CPGetHashParam(
 			SetLastError( ERROR_MORE_DATA );
 			return FALSE;
 		}
-		switch ( dwParams ){
+		switch ( dwParam ){
 			case HP_HASHVAL:
 				// export hashvalue into buffer.
 				if ( !getHash( pProvCtx, pHash, pbData, pcbDataLen ) ){
@@ -913,29 +917,29 @@ CPGetHashParam(
 
 BOOL WINAPI
 CPExportKey(
-    IN  HCRYPTPROV hProv,
-    IN  HCRYPTKEY hKey,
-    IN  HCRYPTKEY hPubKey,
-    IN  DWORD dwBlobType,
-    IN  DWORD dwFlags,
-    OUT LPBYTE pbData,
-    IN OUT LPDWORD pcbDataLen)
+			IN  HCRYPTPROV hProv,
+			IN  HCRYPTKEY hKey,
+			IN  HCRYPTKEY hPubKey,
+			IN  DWORD dwBlobType,
+			IN  DWORD dwFlags,
+			OUT LPBYTE pbData,
+			IN OUT LPDWORD pcbDataLen)
 {
-    PROV_CTX *pProvCtx = (PROV_CTX*) hProv;
+	PROV_CTX *pProvCtx = (PROV_CTX*) hProv;
 	KEY_INFO *pKey = (KEY_INFO*) hKey;
 	KEY_INFO *pPubKey = (KEY_INFO*) hPubKey;
 	BLOBHEADER *pBlobHeader = (BLOBHEADER*) pbData;
 	DWORD dwBlobLen; //< local copy of actual blob len
 
 	DEBUG(1,"_-_-_-_-_-_-_-_-_Exporting key-_-_-_-_-_-_-_-_-\n");
-	switch ( dwParams){
+	switch ( dwBlobType ){
 		case PUBLICKEYBLOB:
-            if(hPubKey != 0) {
-                SetLastError(NTE_BAD_PUBLIC_KEY);
-                return FALSE;
-            }
+			if(hPubKey != 0) {
+				SetLastError(NTE_BAD_PUBLIC_KEY);
+				return FALSE;
+			}
 			// get the public key length
-			if ( !getPubKeyLen( pProvCtx, pKey, dwBlobLen ) ){
+			if ( !getPubKeyLen( pProvCtx, pKey, &dwBlobLen ) ){
 				// Last error is set by getPubKey
 				*pcbDataLen = 0;
 				return FALSE;
@@ -956,8 +960,8 @@ CPExportKey(
 			SetLastError( ERROR_MORE_DATA );
 			return FALSE;
 		}
-		switch ( dwParams ){
-			case PUBLICKEYBLOB:
+		switch ( dwBlobType ){
+			case PUBLICKEYBLOB:{
 
 				// Fill in blob header.
 				pBlobHeader->aiKeyAlg = pKey->algId;
@@ -967,12 +971,14 @@ CPExportKey(
 
 				// Export key in proper.
 				BYTE* pbKeyData = pbData + sizeof( BLOBHEADER );
-				if ( !exportPubKey( pProvCtx, pKey, pbKeyData, dwBlobLen - sizeof(BLOBHEADER) ) ){
+				DWORD dwPubKeyBlobWithoutHeaderLen = dwBlobLen - sizeof(BLOBHEADER);
+				if ( !exportPubKey( pProvCtx, pKey, pbKeyData, &dwPubKeyBlobWithoutHeaderLen ) ){
 					// Last error is set by exportPubKey
 					return FALSE;
 				}
 				// Now public key blob is ready.
 				break;
+							   }
 			default:
 				SetLastError( NTE_BAD_TYPE );
 				return FALSE;
@@ -1016,10 +1022,11 @@ CPImportKey(
 {
 	PROV_CTX *pProvCtx = (PROV_CTX*) hProv;
 	KEY_INFO *pPubKey = (KEY_INFO*) hPubKey;
+	KEY_INFO *pImpKey = NULL;
 	try {
-		KEY_INFO *pImpKey = new KEY_INFO;
+		pImpKey = new KEY_INFO;
 	}
-	catch ( std::bad_alloc &e ){
+	catch ( std::bad_alloc ){
 		SetLastError( NTE_NO_MEMORY );
 		return FALSE;
 	}
@@ -1034,7 +1041,7 @@ CPImportKey(
 		return FALSE;
 	}
 
-	BYTE* pbImpKeyData = pBlobHeader + sizeof( BLOBHEADER ); 
+	BYTE* pbImpKeyData = LPBYTE(pBlobHeader) + sizeof( BLOBHEADER ); 
 		//<imported key data without blob header
 	DWORD dwImpKeyDataLen = cbDataLen - sizeof( BLOBHEADER ); 
 		//< imported key data length without blob header
@@ -1066,7 +1073,7 @@ CPImportKey(
 			// Proccess blob depending on blob's key alg.
 			switch ( pBlobHeader->aiKeyAlg ){
 				case CALG_GOST_SIGN :
-					if ( !importPubKey( pProvCtx, pImpKey, pbImpKeyData,  dwImpKeyLen ) ){
+					if ( !importPubKey( pProvCtx, pImpKey, pbImpKeyData,  dwImpKeyDataLen ) ){
 						// last error is set by importPubKey
 						delete pImpKey;
 						return FALSE;
@@ -1204,7 +1211,7 @@ CPCreateHash(
 	try {
 		pHash = new HASH_INFO;
 	}
-	catch (std::bad_alloc &e){
+	catch (std::bad_alloc ){
 		SetLastError( NTE_NO_MEMORY );
 		return FALSE;
 	}
@@ -1215,11 +1222,7 @@ CPCreateHash(
 				delete pHash;
 				return FALSE;
 			}
-			if ( pHash->finished ){
-				SetLastError( NTE_INVALID_HANDLE );
-				delete pHash;
-				return FALSE;
-			}
+
 			pHash->algid = Algid;
 			pHash->dwHashLen = GOST_HASH_BITS;
 			if ( !createHash( pProvCtx, pHash ) ){
@@ -1234,7 +1237,7 @@ CPCreateHash(
 			delete pHash;
 			return FALSE;
 	}
-	phHash = (HANDLE) pHash;
+	*phHash = (HCRYPTHASH) pHash;
 	DEBUG(1,"-------------Hash context has been created-------------\n");
     return TRUE;
 }
@@ -1279,7 +1282,7 @@ CPHashData(
 		SetLastError( NTE_INVALID_PARAMETER );
 		return FALSE;
 	}
-	if ( !updateHash( pProvCtx, pHash, pbData, cbDataLen ){
+	if ( !updateHash( pProvCtx, pHash, pbData, cbDataLen ) ){
 		// Last error is set by updateHash(...)
 		return FALSE;
 	}
@@ -1346,6 +1349,8 @@ CPSignHash(
     OUT LPBYTE pbSignature,
     IN OUT LPDWORD pcbSigLen)
 {
+	PROV_CTX *pProvCtx = (PROV_CTX*)hProv;
+	KEY_INFO *pPrKey = NULL;
 	DEBUG(1,"_-_-_-_-_-_-_-_-_Signing data-_-_-_-_-_-_-_-_-\n");
 	// The only flag CRYPT_NOHASHOID is not supported 
 	//		due to appliable only to RSA.
@@ -1364,7 +1369,7 @@ CPSignHash(
 	}
 	// If first call
 	if ( pbSignature == NULL ){
-		*pcbSigLen == GOST_SIGN_BITS;
+		*pcbSigLen = GOST_SIGN_BITS;
 		return TRUE;
 	} else {
 		if ( *pcbSigLen < GOST_SIGN_BITS ){
@@ -1374,7 +1379,7 @@ CPSignHash(
 		DWORD dwHashSize;
 		DWORD dwHashSizeLen = sizeof(DWORD);
 		// Get the hash size.
-		if ( !CPGetHashParam( hProv, hHash, HP_HASHSIZE, &dwHashSize, &dwHashSizeLen, 0 ) ){
+		if ( !CPGetHashParam( hProv, hHash, HP_HASHSIZE, LPBYTE(&dwHashSize), &dwHashSizeLen, 0 ) ){
 			// Last Error is set by CPGetHashParam()
 			return FALSE;
 		}
@@ -1383,7 +1388,7 @@ CPSignHash(
 		try {
 			pbHashValue = new BYTE[dwHashSize];
 		}
-		catch (std::bad_alloc &e ){
+		catch (std::bad_alloc ){
 			SetLastError( NTE_NO_MEMORY );
 			return FALSE;
 		}
@@ -1394,12 +1399,22 @@ CPSignHash(
 			delete[] pbHashValue;
 			return FALSE;
 		}
+
+		// Get the user key.
+		HCRYPTKEY hUserKey;
+		if ( !CPGetUserKey( hProv, AT_SIGNATURE, &hUserKey ) ){
+			// Last error is set by CPGetUserKey.
+			return FALSE;
+		}
+		KEY_INFO *pUserKey = (KEY_INFO *) hUserKey;
+		
 		// Sign the hash
-		if ( !signHash( pProvCtx, pbHashValue, dwHashSize, pbSignature, pcbSigLen ) ){
+		if ( !signHash( pProvCtx, pbHashValue, dwHashSize, pUserKey, pbSignature, pcbSigLen ) ){
 			// Last error is set by signHash().
 			delete[] pbHashValue;
 			return FALSE;
 		}
+		CPDestroyKey( hProv, hUserKey );
 		// Now hash is signed.
 	}
 	
@@ -1434,7 +1449,7 @@ CPDestroyHash(
 
 	DEBUG(1,"_-_-_-_-_-_-_-_-_Destroying hash-_-_-_-_-_-_-_-_-\n");
 
-	if ( !destroyHash( pProvCtx, pHash ) ){
+	if ( !releaseHash( pProvCtx, pHash ) ){
 		SetLastError( NTE_FAIL );
 		delete pHash;
 		return FALSE;
@@ -1480,7 +1495,7 @@ CPVerifySignature(
 	KEY_INFO *pPubKey = (KEY_INFO*) hPubKey;
 
 	BYTE* pbHashValue = NULL; //<contains extracted from the hash object hash value
-	DWORD dwHashSize; //<hash value size in bytes
+	DWORD dwHashSizeLen; //<hash value size in bytes
 
 	DEBUG(1,"_-_-_-_-_-_-_-_-_Verifying data-_-_-_-_-_-_-_-_-\n");
 	if ( szDescription != NULL ){
@@ -1495,27 +1510,27 @@ CPVerifySignature(
 	}
 	
 	
-	if ( !CPGetHashParam( hProv, hHash, HP_HASHSIZE, &dwHashSize, &dwHashSizeLen, 0 ) ){
+	if ( !CPGetHashParam( hProv, hHash, HP_HASHSIZE, LPBYTE(&dwHashSizeLen), &dwHashSizeLen, 0 ) ){
 		// Last Error is set by CPGetHashParam()
 		return FALSE;
 	}
 	// Allocate buffer for hash.
 	try {
-		pbHashValue = new BYTE[dwHashSize];
+		pbHashValue = new BYTE[dwHashSizeLen];
 	}
-	catch (std::bad_alloc &e ){
+	catch (std::bad_alloc ){
 		SetLastError( NTE_NO_MEMORY );
 		return FALSE;
 	}
 
 	// Get the hash in propper.
-	if ( !CPGetHashParam( hProv, hHash, HP_HASHVAL, pbHashValue, &dwHashSize, 0 ) ){
+	if ( !CPGetHashParam( hProv, hHash, HP_HASHVAL, pbHashValue, &dwHashSizeLen, 0 ) ){
 		// Last Error is set by CPGetHashParam().
 		delete[] pbHashValue;
 		return FALSE;
 	}
 	// Verify the hash
-	if ( !signHash( pProvCtx, pbHashValue, dwHashSize, pPubKey, pbSignature ) ){
+	if ( !verifyHash( pProvCtx, pbHashValue, dwHashSizeLen, pPubKey, pbSignature, cbSigLen ) ){
 			// Last error is set by verifyHash().
 			delete[] pbHashValue;
 			return FALSE;
@@ -1600,11 +1615,11 @@ CPGetUserKey(
 	}
 
 	if ( !getUserKey( pProvCtx, pKey ) ){
-		// LastError is set by genRandom
+		// LastError is set by getUserKey.
 		return FALSE;
 	}
 
-	*phUserKey = (HANDLE) pKey;
+	*phUserKey = (HCRYPTKEY) pKey;
 
 	DEBUG(1,"----------------user key has been got-------------\n");
     return TRUE;

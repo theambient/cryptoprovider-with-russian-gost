@@ -20,7 +20,7 @@ byte S[8][16] = { // S-блоки, используемые ЦБ РФ
 { 1, 15, 13,  0,  5,  7, 10,  4,  9,  2,  3, 14,  6, 11,  8, 12},
 };
 
-void E_f(byte A[], byte K[], byte R[]) { // Функция f в ГОСТ 28147-89
+void E_f(const byte A[], const byte K[], byte R[]) { // Функция f в ГОСТ 28147-89
   int c = 0; //Складываем по модулю 2^32. c - перенос  в следующий разряд
   for (int i = 0; i < 4; i++) {
     c += A[i] + K[i];
@@ -51,7 +51,7 @@ void E_f(byte A[], byte K[], byte R[]) { // Функция f в ГОСТ 28147-89
   R[0] = (R[0] << 3) | tmp;
 }
 
-void E(byte  D[], byte K[], byte R[]) { // ГОСТ 28147-89
+void E(const byte  D[], const byte K[], byte R[]) { // ГОСТ 28147-89
   Block32 A, B;                                //Инициализация блоков A и B
   for (int i = 0; i < 4; i++) A[i] = D[i];
   for (int i = 0; i < 4; i++) B[i] = D[i + 4];
@@ -101,7 +101,7 @@ void psi(byte arr[], int p) {
   while (p--) psi(arr);
 }
 
-void f(byte H[], byte M[], byte newH[]) { // Функция f
+void stephash( const byte H[], const byte M[], byte newH[]) { // Функция f
   Block C[4];
   memset(C, 0, sizeof C);
   C[2][ 0] = 0x00;
@@ -180,7 +180,7 @@ void hash(const byte buf[], const int len, byte result[]) {
         c >>= 8;
       }
 
-      f(H, block, newH); memcpy(H, newH, sizeof newH);
+      stephash(H, block, newH); memcpy(H, newH, sizeof newH);
     }
   }
 
@@ -190,6 +190,6 @@ void hash(const byte buf[], const int len, byte result[]) {
     L[i] = c & 0xFF;
     c >>= 8;
   }
-  f(H, L, newH); memcpy(H, newH, sizeof newH);
-  f(H, Sum, newH); memcpy(result, newH, sizeof newH);
+  stephash(H, L, newH); memcpy(H, newH, sizeof newH);
+  stephash(H, Sum, newH); memcpy(result, newH, sizeof newH);
 }

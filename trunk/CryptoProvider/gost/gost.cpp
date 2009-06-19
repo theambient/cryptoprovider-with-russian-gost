@@ -69,6 +69,7 @@ void sign(const byte *pDigestMsg, const IppsBigNumState *pPrivateKey, byte *pSig
 }
 
 bool verify(const Ipp8u *pDigestMsg, const IppsECCPPointState *pPublicKey, const Ipp8u *pSignature, const PARAMS_GOST_SIGN *params){
+	
 	IppsBigNumState *pE = bnNew( iBNSize, pDigestMsg );
 	ippsMod_BN( pE, params->pOrder, pE );
 	Ipp32u iResult;
@@ -82,16 +83,20 @@ bool verify(const Ipp8u *pDigestMsg, const IppsECCPPointState *pPublicKey, const
 	IppsBigNumState *pS = bnNew( iBNSize, pSignature + iBNSize*4);
 	
 #ifdef _TEST_VERIFY
+	std::cout << "pE:\t" << pE << std::endl;
+	std::cout << "pV:\t" << pV << std::endl;
 	std::cout << "pR:\t" << pR << std::endl;
 	std::cout << "pS:\t" << pS << std::endl;
+	std::cout << "params->pOrder:\t" << params->pOrder << std::endl;
 #endif
-	IppsBigNumState *pZ1 = bnNew( 2*iBNSize );
-	IppsBigNumState *pZ2 = bnNew( 2*iBNSize );
-	ippsMul_BN( pS, pV, pZ1 );
-	ippsMod_BN( pZ1, params->pOrder, pZ1 );
+	IppsBigNumState *pZ1 = bnNew( iBNSize );
+	IppsBigNumState *pZ2 = bnNew( iBNSize );
+	IppsBigNumState *pTemp = bnNew( 2*iBNSize );
+	ippsMul_BN( pS, pV, pTemp );
+	ippsMod_BN( pTemp, params->pOrder, pZ1 );
 
-	ippsMul_BN( pR, pV, pZ2 );
-	ippsMod_BN( pZ2, params->pOrder, pZ2 );
+	ippsMul_BN( pR, pV, pTemp );
+	ippsMod_BN( pTemp, params->pOrder, pZ2 );
 	ippsSub_BN( params->pOrder, pZ2, pZ2 );
 
 #ifdef _TEST_VERIFY

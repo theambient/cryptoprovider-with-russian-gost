@@ -4,6 +4,7 @@
 #include "ecc.h"
 #include <iostream>
 #include "constants.h"
+#include "csp/csp-debug.h"
 
 inline int getFEBitSize(){
 	int res;
@@ -17,22 +18,30 @@ IppsECCPPointState* eccPointNew( const IppsBigNumState *pPX, const IppsBigNumSta
 
 	int eccPointSize;
 	IppStatus res = ippsECCPPointGetSize(feBitSize, &eccPointSize);
-	if ( res != ippStsNoErr)
+	if ( res != ippStsNoErr){
 		std::cerr << res;
+		return NULL;
+	}
 
 	IppsECCPPointState *pPoint = (IppsECCPPointState* ) (new Ipp8u[eccPointSize]);
 
 	res = ippsECCPPointInit( feBitSize, pPoint );
-	if ( res != ippStsNoErr)
+	if ( res != ippStsNoErr){
 		std::cerr << res;
+		return NULL;
+	}
 
 	if ( pPX != NULL && pPY != NULL){
 		res = ippsECCPSetPoint( pPX, pPY, pPoint, pECC );
-		if ( res != ippStsNoErr)
+		if ( res != ippStsNoErr){
 			std::cerr << res;
+			return NULL;
+		}
 	}
-	else
+	else {
 		std::cerr << "eccPointNew: NULL cordinates supplied" << std::endl;
+		return NULL;
+	}
 	return pPoint;
 }
 
@@ -62,7 +71,7 @@ void eccPointRelease( IppsECCPPointState* pPoint){
 }
 
 
-void eccPointToOctet( const IppsECCPPointState *pPoint, Ipp8u *pRawKey ){
+void eccPointToOctet( const IppsECCPPointState *pPoint, IppsECCPState *pECC, Ipp8u *pRawKey ){
 	IppsBigNumState *pX = bnNew( iBNSize );
 	IppsBigNumState *pY = bnNew( iBNSize );
 	ippsECCPGetPoint( pX, pY, pPoint, NULL );
@@ -70,10 +79,10 @@ void eccPointToOctet( const IppsECCPPointState *pPoint, Ipp8u *pRawKey ){
 	ippsGetOctString_BN( pRawKey + iBNSize*4, iBNSize*4, pY );
 }
 
-void eccPointToString( const IppsECCPPointState *pPoint, char *sPoint ){
+void eccPointToString( const IppsECCPPointState *pPoint, IppsECCPState *pECC, char *sPoint ){
 	IppsBigNumState *pX = bnNew( iBNSize );
 	IppsBigNumState *pY = bnNew( iBNSize );
-	ippsECCPGetPoint( pX, pY, pPoint, NULL );
+	ippsECCPGetPoint( pX, pY, pPoint, pECC );
 	bnConvertToString( pX, sPoint );
 	bnConvertToString(  pY, sPoint + iBNSize*8 );
 }
@@ -82,12 +91,12 @@ void eccPointToString( const IppsECCPPointState *pPoint, char *sPoint ){
 
 IppsECCPPointState* eccPointNew( const Ipp8u *baseData, const int byteDataLen, IppsECCPState* pECC){
 	if ( byteDataLen%2 == 1 ){
-		std::cerr << "eccPointNew: byteDataLength is odd" << std::endl;
-		return eccPointNew( pECC );
+		DEBUG( 0, "eccPointNew: byteDataLength is odd" );
+		return NULL;
 	}
 	if ( byteDataLen/2 > iBNSize*4 ){
-		std::cerr << "eccPointNew: byteDataLength/2 is greater then iBNSize*4" << std::endl;
-		return eccPointNew( pECC );
+		DEBUG( 0, "eccPointNew: byteDataLength/2 is greater then iBNSize*4" );
+		return NULL;
 	}
 
 	IppsBigNumState *pX = bnNew( iBNSize, baseData );

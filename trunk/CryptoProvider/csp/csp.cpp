@@ -39,7 +39,7 @@ PROV_ENUMALGS_EX algorithms[] = {
 	{CALG_GOST_HASH, GOST_HASH_BITS, GOST_HASH_MIN_BITS, GOST_HASH_MAX_BITS, 0, (DWORD)strlen(GOST_HASH_NAME), GOST_HASH_NAME, (DWORD) strlen(GOST_HASH_NAME), GOST_HASH_NAME }
 }; /**< Supported algorithms database.*/
 
-extern const unsigned algorithms_count = sizeof(algorithms);
+extern const unsigned algorithms_count = 4;
 
 HINSTANCE g_hModule = NULL; /**< DLL Instance. */
 
@@ -111,7 +111,7 @@ CPAcquireContext(
 {
 	PROV_CTX *pProvCtx = NULL;
 	CONTAINER_INFO *pContainer = NULL;
-	char debug[255];
+	char debug_message[255];
 
 	HWND FuncReturnedhWnd = 0;
 
@@ -159,7 +159,7 @@ CPAcquireContext(
 		pContainer->hServiceInformation = NULL;
 
 		// Set CSP Instance, user interface windows in proper
-		if(pVTable->FuncReturnhWnd != NULL) {
+		/*if(pVTable->FuncReturnhWnd != NULL) {
 			pVTable->FuncReturnhWnd(&FuncReturnedhWnd);
 			sprintf(debug, "Window handle was provided: %x, ", (unsigned int) FuncReturnedhWnd);
 			DEBUG(4, debug);
@@ -172,10 +172,11 @@ CPAcquireContext(
 				DEBUG(4, "invalid.\n");
 			}
 		}
+		*/
 		/** - Transmit the csp instance handle to service.*/
 		setCSPInstance(g_hModule);
 
-		phProv = ( HCRYPTPROV* ) pProvCtx;
+		*phProv = ( HCRYPTPROV ) pProvCtx;
 		// if CRYPT_VERIFYCONTEXT is set container shouldn't be open.
 		if ( !(dwFlags & CRYPT_VERIFYCONTEXT) ){
 			DEBUG( 3, "Openning container.\n" );
@@ -314,18 +315,10 @@ CPGenKey(
 	}
 	try {
 		// Create the key context.
-		pKey = new KEY_INFO;
-
-		// Fill in the key context.
-		pKey->algId = 0;
-		pKey->blockLen = 0;
-		pKey->dwKeySpec = 0;
-		pKey->iv = NULL;
-		pKey->ivLen = 0;
-		pKey->length = 0;
-		pKey->salt = NULL;
-		pKey->saltLen = 0;
-		pKey->mode = 0;
+		if ( !createKey( pProvCtx, &pKey ) ){
+			SetLastError( NTE_FAIL );
+			return FALSE;
+		}
 		switch ( Algid ) {
 			case CALG_GOST_SIGN:
 			case AT_SIGNATURE:
@@ -358,7 +351,7 @@ CPGenKey(
 		SetLastError( NTE_NO_MEMORY );
 		return FALSE;
 	}
-				
+	*phKey = (HCRYPTKEY) pKey;
 	DEBUG(1,"---------------Key has been generated---------------\n");
     return TRUE;
 }
@@ -626,7 +619,8 @@ CPGetProvParam(
     IN  DWORD dwFlags)
 {
 	PROV_CTX *pProvCtx = (PROV_CTX*) hProv;
-
+	char debugMessage[255];
+	bool bNoMoreAlgs = false;
 	DEBUG(1,"_-_-_-_-_-_-_-_-_Getting provider params-_-_-_-_-_-_-_-_-\n");
     if(dwFlags && (dwFlags & ~(CRYPT_FIRST))) {
         SetLastError(NTE_BAD_FLAGS);
@@ -636,12 +630,15 @@ CPGetProvParam(
 	DWORD dwLen = 0; //< local copy of buffer length
 	switch ( dwParam ) {
 		case PP_ENUMALGS:
+			
 			dwLen = sizeof( PROV_ENUMALGS );
 			break;
 		case PP_ENUMALGS_EX:
+			
 			dwLen = sizeof( PROV_ENUMALGS_EX );
 			break;
 		case PP_CONTAINER:
+			
 			if ( pProvCtx->pContainer->cName != NULL )
 				dwLen = (DWORD) strlen(pProvCtx->pContainer->cName) + 1;
 			else
@@ -654,6 +651,7 @@ CPGetProvParam(
 			dwLen = sizeof( DWORD );
 			break;
 		case PP_NAME:
+			
 			dwLen = (DWORD) strlen( CSP_NAME ) + 1;
 			break;
 
@@ -661,10 +659,12 @@ CPGetProvParam(
 			dwLen = sizeof( BOOL );
 			break;
 		default:
+			DEBUG(1, "Unhandled dwParam" );
 			SetLastError( NTE_BAD_TYPE );
 			return FALSE;
 	}
 	if ( pbData == NULL ){
+		DEBUG( 2, "pbData == NULL" );
 		// That should be the first call.
 		// Return length of buffer.
 		*pcbDataLen = dwLen;
@@ -679,6 +679,7 @@ CPGetProvParam(
 		*pcbDataLen = dwLen;
 		switch ( dwParam ) {
 			case PP_ENUMALGS: {
+				DEBUG( 2, "dwParam = PP_ENUMALGS" );
 				// Test if for actual first call and 
 				// CRYPT_FIRST flag correspondance
 				static bool bFirstCall = true;
@@ -688,13 +689,14 @@ CPGetProvParam(
 				} else {
 					bFirstCall = false;
 				}
-
+				
 				static unsigned index; //< enumerating index
 				if ( dwFlags & CRYPT_FIRST ){
 					index = 0;
-				} else if (index >= sizeof(algorithms)){
-						SetLastError( NTE_NO_MORE_ITEMS );
-						return FALSE;
+				} else if (index >= algorithms_count){
+					//SetLastError( NTE_NO_MORE_ITEMS );
+					//return FALSE;
+					bNoMoreAlgs = true;
 				}
 				PROV_ENUMALGS_EX *pAlgEx = &algorithms[index];
 				PROV_ENUMALGS *algInfo = (PROV_ENUMALGS*) pbData;
@@ -706,9 +708,11 @@ CPGetProvParam(
 				break;
 							  }
 			case PP_ENUMALGS_EX: {
+				DEBUG( 2, "dwParam = PP_ENUMALGS_EX" );
 				// Test if for actual first call and 
 				// CRYPT_FIRST flag correspondance
 
+				/*
 				static bool bFirstCall = true;
 				if ( bFirstCall && !(dwFlags & CRYPT_FIRST) ){
 					SetLastError( NTE_BAD_TYPE );
@@ -716,47 +720,64 @@ CPGetProvParam(
 				} else {
 					bFirstCall = false;
 				}
+				*/
 
 				static unsigned index; //< enumerating index
 				if ( dwFlags & CRYPT_FIRST ){
 					index = 0;
-				} else if (index >= sizeof(algorithms)){
-						SetLastError( NTE_NO_MORE_ITEMS );
-						return FALSE;
+				} else if (index >= algorithms_count){
+					//SetLastError( NTE_NO_MORE_ITEMS );
+					//return FALSE;
+					bNoMoreAlgs = true;
 				}
+				sprintf( debugMessage, "Enumerating algs, index = %d", index );
+				DEBUG( 3, debugMessage );
+
 				memcpy( pbData, &algorithms[index], sizeof( PROV_ENUMALGS_EX ) );
 				index++;
 				break;
 								 }
 			case PP_CONTAINER:
+				DEBUG( 2, "dwParam = PP_CONTAINER" );
 				if ( pProvCtx->pContainer->cName != NULL )
 					strcpy( (LPSTR)pbData, pProvCtx->pContainer->cName );
 				break;
 			case PP_IMPTYPE:
+				DEBUG( 2, "dwParam = PP_IMPTYPE" );
 				*pbData = CRYPT_IMPL_SOFTWARE;
 				break;
 			case PP_NAME:
+				DEBUG( 2, "dwParam = PP_NAME" );
 				memcpy( pbData, CSP_NAME, strlen(CSP_NAME)+1 );
 				break;
 			case PP_VERSION:
+				DEBUG( 2, "dwParam = PP_VERSION" );
 				*LPDWORD( pbData ) = CSP_VERSION;
 				break;
 			case PP_PROVTYPE:
+				DEBUG( 2, "dwParam = PP_PROVTYPE" );
 				*LPDWORD( pbData ) = CSP_PROVTYPE;
 				break;
 			case PP_KEYSPEC:
+				DEBUG( 2, "dwParam = PP_KYSPEC" );
 				*LPDWORD( pbData ) = ( AT_SIGNATURE | AT_KEYEXCHANGE );
 				break;
 			case PP_USE_HARDWARE_RNG:
+				DEBUG( 2, "dwParam = PP_USE_HARDWARE_RNG" );
 				*pbData = FALSE;
 				break;
 			default:
 				*pcbDataLen = 0;
+				DEBUG( 1, "Unhandled dwParam" );
 				SetLastError( NTE_BAD_TYPE );
 				return FALSE;
 		}
 	}
 	DEBUG(1,"---------------Provider params have been got---------------\n");
+	if ( bNoMoreAlgs ){
+		SetLastError( NTE_NO_MORE_ITEMS );
+		return FALSE;
+	}
     return TRUE;
 }
 
@@ -945,6 +966,7 @@ CPExportKey(
 				return FALSE;
 			}
 			dwBlobLen += sizeof(BLOBHEADER);
+			break;
 		default:
 			SetLastError(NTE_BAD_TYPE);
 			*pcbDataLen = 0;
@@ -1023,11 +1045,9 @@ CPImportKey(
 	PROV_CTX *pProvCtx = (PROV_CTX*) hProv;
 	KEY_INFO *pPubKey = (KEY_INFO*) hPubKey;
 	KEY_INFO *pImpKey = NULL;
-	try {
-		pImpKey = new KEY_INFO;
-	}
-	catch ( std::bad_alloc ){
-		SetLastError( NTE_NO_MEMORY );
+
+	if ( !createKey( pProvCtx, &pImpKey ) ){
+		// Last error is set by createKey.
 		return FALSE;
 	}
 	BLOBHEADER *pBlobHeader = (BLOBHEADER*) pbData;
@@ -1037,7 +1057,7 @@ CPImportKey(
 	// Test if blob data is length enough
 	if ( cbDataLen < sizeof( BLOBHEADER ) ){
 		SetLastError( NTE_BAD_DATA );
-		delete pImpKey;
+		releaseKey( pProvCtx, pImpKey );
 		return FALSE;
 	}
 
@@ -1052,7 +1072,6 @@ CPImportKey(
 	pImpKey->dwKeySpec = 0;
 	pImpKey->exportable = dwFlags & CRYPT_EXPORTABLE;
 	pImpKey->fLen = 0;
-	pImpKey->hKeyInformation = NULL;
 	pImpKey->iv = NULL;
 	pImpKey->ivLen = 0;
 	pImpKey->length = 0;
@@ -1067,7 +1086,7 @@ CPImportKey(
 		case PUBLICKEYBLOB:
 			if ( hPubKey !=0 ){
 				SetLastError( NTE_INVALID_PARAMETER );
-				delete pImpKey;
+				releaseKey( pProvCtx, pImpKey );
 				return FALSE;
 			}
 			// Proccess blob depending on blob's key alg.
@@ -1075,19 +1094,20 @@ CPImportKey(
 				case CALG_GOST_SIGN :
 					if ( !importPubKey( pProvCtx, pImpKey, pbImpKeyData,  dwImpKeyDataLen ) ){
 						// last error is set by importPubKey
-						delete pImpKey;
+						releaseKey( pProvCtx, pImpKey );
 						return FALSE;
 					}
 					// now key is imported
 					break;
 				default: 
 					SetLastError( NTE_BAD_DATA );
-					delete pImpKey;
+					releaseKey( pProvCtx, pImpKey );
 					return FALSE;
 			}
+			break;
 		default:
 			SetLastError( NTE_BAD_TYPE );
-			delete pImpKey;
+			releaseKey( pProvCtx, pImpKey );
 			return FALSE;
 	}
 	DEBUG(1,"---------------Key has been imported---------------\n");
@@ -1129,7 +1149,16 @@ CPEncrypt(
     IN  DWORD cbBufLen)
 {
 	DEBUG(1,"_-_-_-_-_-_-_-_-_Encrypting data-_-_-_-_-_-_-_-_-\n");
-    *pcbDataLen = 0;
+	if ( pbData == NULL ){
+		 *pcbDataLen = CRYPTBLOCK_BYTE_LEN;
+		 return TRUE;
+	} else {
+		if ( *pcbDataLen < CRYPTBLOCK_BYTE_LEN && ! fFinal ){
+			*pcbDataLen = CRYPTBLOCK_BYTE_LEN;
+			SetLastError( ERROR_MORE_DATA );
+			return FALSE;
+		}
+	}
 	DEBUG(1,"---------------Data has been encrypted---------------\n");
     return TRUE;
 }
@@ -1167,7 +1196,16 @@ CPDecrypt(
     IN OUT LPDWORD pcbDataLen)
 {
 	DEBUG(1,"_-_-_-_-_-_-_-_-_Encrypting data-_-_-_-_-_-_-_-_-\n");
-    *pcbDataLen = 0;
+	if ( pbData == NULL ){
+		 *pcbDataLen = CRYPTBLOCK_BYTE_LEN;
+		 return TRUE;
+	} else {
+		if ( *pcbDataLen < CRYPTBLOCK_BYTE_LEN && !fFinal){
+			*pcbDataLen = CRYPTBLOCK_BYTE_LEN;
+			SetLastError( ERROR_MORE_DATA );
+			return FALSE;
+		}
+	}
 	DEBUG(1,"---------------Data has been encrypted---------------\n");
     return TRUE;
 }
@@ -1208,13 +1246,6 @@ CPCreateHash(
 		return FALSE;
 	}
 
-	try {
-		pHash = new HASH_INFO;
-	}
-	catch (std::bad_alloc ){
-		SetLastError( NTE_NO_MEMORY );
-		return FALSE;
-	}
 	switch (Algid){
 		case CALG_GOST_HASH:
 			if ( hKey != 0 ){
@@ -1222,19 +1253,14 @@ CPCreateHash(
 				delete pHash;
 				return FALSE;
 			}
-
-			pHash->algid = Algid;
-			pHash->dwHashLen = GOST_HASH_BITS;
-			if ( !createHash( pProvCtx, pHash ) ){
+			if ( !createHash( pProvCtx, &pHash ) ){
 				// last error is set by createHash()
-				delete pHash;
 				return FALSE;
 			}
 			// hash created
 			break;
 		default:
 			SetLastError( NTE_BAD_ALGID );
-			delete pHash;
 			return FALSE;
 	}
 	*phHash = (HCRYPTHASH) pHash;
@@ -1451,10 +1477,8 @@ CPDestroyHash(
 
 	if ( !releaseHash( pProvCtx, pHash ) ){
 		SetLastError( NTE_FAIL );
-		delete pHash;
 		return FALSE;
 	}
-	delete pHash;
 	DEBUG(1,"-------------Hash has been destroyed-------------\n");
     return TRUE;
 }
@@ -1606,11 +1630,8 @@ CPGetUserKey(
 		SetLastError( ERROR_INVALID_PARAMETER );
 		return FALSE;
 	}
-	try {
-		pKey = new KEY_INFO;
-	}
-	catch( std::bad_alloc ){
-		SetLastError( NTE_NO_MEMORY );
+	if ( !createKey( pProvCtx, &pKey ) ){
+		// Last error is set by create key.
 		return FALSE;
 	}
 

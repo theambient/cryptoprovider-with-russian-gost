@@ -28,16 +28,20 @@
  */
 
 
+
 #ifndef _CSP_DEBUG_H_
 #define UNICODE
-#define _CSP_DEBUG_H_       /**< csp11.h inclusion tag. */
+#define _CSP_DEBUG_H_       /**< csp.h inclusion tag. */
+
+#include <windows.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define DEBUG_FILE      "C:\\csp11.log" /**< Path to the debug log file.*/
+#define DEBUG_FILE      "C:\\csp.log" /**< Path to the debug log file.*/
 
-#define DEBUG_LEVEL      0  /**< Debug level 0 to 5 */
+#define DEBUG_LEVEL      3  /**< Debug level 0 to 5 */
 
 /** \brief Close the debug log file.
  *

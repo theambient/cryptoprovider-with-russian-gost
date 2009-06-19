@@ -2,8 +2,13 @@
 #ifndef _CSPSERVICES_HEADER_FILE
 #define _CSPSERVICES_HEADER_FILE
 
-
+#include <windows.h>
 #include "csp.h"
+#include "rand/rand.h"
+#include "csp-helpers.h"
+#include "csp-struct.h"
+
+
 
 /*	\brief Open a container with the name szContainer.
  *	
@@ -48,6 +53,17 @@ BOOL genKeyPair( PROV_CTX* pProvCtx, KEY_INFO* pKey );
  *
  */
 DWORD getKeyLen( ALG_ID algid );
+
+/*	\brief	Create the key context.
+ *	
+ *	\param	pProvCtx	Pointer to the a CSP context.
+ *	\param	pKey		pointer to pointer to key to release.
+ *
+ *	\return	TRUE if release succeeded, FALSE otherwise;
+ *		more in last error.
+ *
+ */
+BOOL createKey( PROV_CTX *pProvCtx, KEY_INFO **pKey );
 
 /*	\brief	Release the key context.
  *	
@@ -162,13 +178,13 @@ BOOL genRandom(PROV_CTX *pProvCtx,
 /*	\brief	Create hash context.
  *
  *	\param	pProvCtx	pointer to a CSP context.
- *	\param	pHash		Hash context.
+ *	\param	ppHash		pointer to the (pointer to the) Hash context.
  *
  *	\return	TRUE if hash has been created, FALSE otherwise;
  *		more in last error.
  *
  */
-BOOL createHash(PROV_CTX* pProvCtx, HASH_INFO* pHash );
+BOOL createHash(PROV_CTX* pProvCtx, HASH_INFO** ppHash );
 
 /*	\brief	Feed to a hash data block.
  *	

@@ -2,6 +2,7 @@
 #include "bignum.h"
 #include <iomanip>
 #include "types.h"
+//#include "csp/csp-debug.h"
 
 inline int chartobyte ( const char c ){
 	if ( !isxdigit(c) )
@@ -13,20 +14,6 @@ inline int chartobyte ( const char c ){
 		return i - int('0');
 }
 
-inline char bytetochar( const int n ){
-
-	static char xlat[16] = {
-		'0', '1', '2', '3',
-		'4', '5', '6', '7',
-		'8', '9', 'A', 'B',
-		'C', 'D', 'E', 'F'
-	};
-
-	if ( n > 15)
-		throw std::invalid_argument( "bytetochar: the supplied value of argument n is invalid - n > 15" );	
-
-	return xlat[n];
-}
 
 // конвертирует строку с шестнадцатиричным представлением числа 
 // в 'octet string' - несимвольную строку значений.
@@ -197,8 +184,18 @@ bool bnConvertToString ( const IppsBigNumState *pBN, char* sBN ){
 		return false;
 	}
 	// save representation
-	for(int i=0; i<size*4; i++)
-		sBN[i] = bytetochar(bnValue[i]);
+	for(int i=0; i<size*4; i++){
+		static char xlat[16] = {
+			'0', '1', '2', '3',
+			'4', '5', '6', '7',
+			'8', '9', 'A', 'B',
+			'C', 'D', 'E', 'F'
+		};
+
+		sBN[2*i] = xlat[(bnValue[i]&0xF0) >> 4];
+		sBN[2*i+1] = xlat[bnValue[i]&0x0F];
+	}
+	sBN[2*size*4] = '\0';
 	delete[] bnValue;	
 	return true;
 }

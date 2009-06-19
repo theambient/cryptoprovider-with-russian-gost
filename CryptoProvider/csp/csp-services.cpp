@@ -5,6 +5,7 @@
 #include "rand/rand.h"
 #include "constants.h"
 #include "csp-helpers.h"
+#include "csp-debug.h"
 
 #define DEFAULT_CONTAINER_NAME "d:/keyset/EKEY/EKEY.INI"
 #define MAX_CONTAINER_SIZE 512
@@ -12,35 +13,8 @@
 	// if it greater this value assume the file is invalid.
 	// normal file size is 110 bytes.
 
-typedef struct _CONTAINER_IRZ {
-	//HANDLE hToken; //<handle to the file containing key pair.
-	LPSTR szToken; //<handle to the file containing key pair.
-	//BYTE pbPrKey[GOST_SIGN_BITS]; //<PrivateKey.
-	CHAR szUserID[20]; //<user ID, can be found under 
-		//[IDENT] section of EKEY.INI.
-	//KEY_INFO pUserKey;
-	Rand rand;
-} CONTAINER_IRZ;
-
-typedef struct _KEY_SIGN_INFO {
-	PUBLIC_KEY *pPubKey; //<Public key.
-	PRIVATE_KEY *pPrKey; //<Private key.
-	PARAMS_GOST_SIGN params; //<Key Params.
-	//bool bHasPrivate; //<true if key has private.
-	//bool bKeyModified;//<true if key was modified
-} KEY_SIGN_INFO;
-
-typedef struct _HASH_SERVICE_INFO {
-	BYTE bDataHashed[HASH_BYTE_LEN];//< contains already hashed data, var H from GOST.
-	BYTE bDataRest[HASH_BYTE_LEN];	//< contains the rest of data from last feeding (updateHash)
-									//		if feeded data len is not multiple of HASH_BYTE_LEN.
-	BYTE bSum[HASH_BYTE_LEN];		//< the control sum of hashing data, var $\Sigma$ from GOST.
-	BYTE bLen[HASH_BYTE_LEN];		//< the control length of hashing Data, var L from GOST.
-	DWORD dwDataRestLen;			//< actual length of bDataRest.
-} HASH_SERVICE_INFO;
-
 BOOL OpenContainer( PROV_CTX* pProvCtx, LPCSTR szContainer ){
-	LPSTR szToken = NULL;
+	CHAR szToken[200];
 	CONTAINER_IRZ *pContainerIRZ = NULL;
 	if ( szContainer == NULL ){
 		strcpy( szToken , DEFAULT_CONTAINER_NAME );
@@ -91,8 +65,10 @@ BOOL getUserKey( PROV_CTX *pProvCtx, KEY_INFO *pKey ){
 	//showDialogBox( 
 
 	CONTAINER_IRZ *pContainerIRZ = (CONTAINER_IRZ *) pProvCtx->pContainer->hServiceInformation;
-	LPSTR szPrivateKey = new CHAR[PRIVATEKEY_CHAR_LEN+1];
-	DWORD dwRes = GetPrivateProfileStringA(  "PRIVATEKEY", 
+	CHAR szPrivateKey[PRIVATEKEY_CHAR_LEN+1];
+	CHAR szPublicKey[PUBLICKEY_CHAR_LEN+1];
+	DWORD dwRes = GetPrivateProfileStringA(  
+		"PRIVATEKEY",
 		"PRIVATEKEY",
 		NULL,
 		szPrivateKey,
@@ -100,11 +76,17 @@ BOOL getUserKey( PROV_CTX *pProvCtx, KEY_INFO *pKey ){
 		pContainerIRZ->szToken);
 
 	if ( dwRes != PRIVATEKEY_CHAR_LEN ){
-		delete[] szPrivateKey;
 		SetLastError(NTE_BAD_KEYSET);
 		return FALSE;
 	}
 
+	dwRes = GetPrivateProfileStringA(  
+		"PUBLICKEY", 
+		"PUBLICKEY",
+		NULL,
+		szPublicKey,
+		PUBLICKEY_CHAR_LEN+1,
+		pContainerIRZ->szToken);
 	
 	pKey->algId = CALG_GOST_SIGN;
 	pKey->blockLen = 0;
@@ -113,15 +95,21 @@ BOOL getUserKey( PROV_CTX *pProvCtx, KEY_INFO *pKey ){
 	pKey->fLen = 0;
 	pKey->length = PRIVATEKEY_BYTE_LEN;
 
-	KEY_SIGN_INFO *pKeyInfo = new KEY_SIGN_INFO;
-	pKey->hKeyInformation = (HANDLE) pKeyInfo;
+	KEY_SIGN_INFO *pKeyInfo = (KEY_SIGN_INFO *) pKey->hKeyInformation;
 
-	pKeyInfo->params = PARAMSET_GOST_SIGN_1;
-	if ( !derivePrivateKey( pKeyInfo->pPrKey, szPrivateKey ) ){
+	//pKeyInfo->params = PARAMS_GOST_SIGN( PARAMSET_GOST_SIGN_1 );
+	if ( !derivePrivateKey( pKeyInfo, szPrivateKey ) ){
 		SetLastError( NTE_BAD_KEYSET );
 		return FALSE;
 	}
-	pKeyInfo->pPubKey = NULL;
+	if ( szPublicKey != NULL ){
+		if ( !derivePubKey( pKeyInfo, szPublicKey ) ){
+			SetLastError( NTE_BAD_KEYSET );
+			return FALSE;
+		}		
+	} else 
+		pKeyInfo->pPubKey = NULL;
+
 	return TRUE;
 }
 
@@ -129,6 +117,31 @@ BOOL releaseContainer( PROV_CTX *pProvCtx ){
 	CONTAINER_IRZ *pContainerIRZ = (CONTAINER_IRZ*) pProvCtx->pContainer->hServiceInformation;
 	//CloseHandle( pContainerIRZ->hToken );
 	delete pContainerIRZ;
+	return TRUE;
+}
+
+BOOL createKey( PROV_CTX *pProvCtx, KEY_INFO **ppKey ){
+		
+	*ppKey = new KEY_INFO;
+
+	KEY_INFO *pKey = *ppKey;
+
+	// Fill in the key context.
+	pKey->algId = 0;
+	pKey->blockLen = 0;
+	pKey->dwKeySpec = 0;
+	pKey->iv = NULL;
+	pKey->ivLen = 0;
+	pKey->length = 0;
+	pKey->salt = NULL;
+	pKey->saltLen = 0;
+	pKey->mode = 0;
+
+	KEY_SIGN_INFO *pKeyInfo = new KEY_SIGN_INFO;
+	pKeyInfo->pPrKey = NULL;
+	pKeyInfo->pPubKey = NULL;
+	pKey->hKeyInformation = (HANDLE) pKeyInfo;
+
 	return TRUE;
 }
 
@@ -141,11 +154,16 @@ BOOL genKeyPair( PROV_CTX* pProvCtx, KEY_INFO* pKey ){
 		SetLastError( NTE_BAD_KEY_STATE );
 		return FALSE;
 	}
+
 	CONTAINER_IRZ *pContainerIRZ = (CONTAINER_IRZ*) pProvCtx->pContainer->hServiceInformation;
 	KEY_SIGN_INFO *pKeyInfo = (KEY_SIGN_INFO*) pKey->hKeyInformation;
 
+
 	// Generate key pair in proper.
-	if ( !genKeyPair( &pKeyInfo->pPubKey, &pKeyInfo->pPrKey, &pKeyInfo->params, &pContainerIRZ->rand ) ){
+	if ( pKeyInfo->pPrKey != NULL || pKeyInfo->pPubKey != NULL ){
+		DEBUG( 1, "While generating key pair: Key already exists." );
+	}
+	if ( !genKeyPair( &pKeyInfo->pPubKey, &(pKeyInfo->pPrKey), &pKeyInfo->params, &pContainerIRZ->rand ) ){
 		SetLastError( NTE_FAIL );
 		return FALSE;
 	}
@@ -154,13 +172,13 @@ BOOL genKeyPair( PROV_CTX* pProvCtx, KEY_INFO* pKey ){
 	LPSTR szPrKey = new CHAR[PRIVATEKEY_CHAR_LEN+1];
 	LPSTR szPubKey = new CHAR[PUBLICKEY_CHAR_LEN+1];
 	
-	if ( !privateKeyToString( pKeyInfo->pPrKey, szPrKey ) ){
+	if ( !privateKeyToString( pKeyInfo, szPrKey ) ){
 		/* \todo release resources.*/
 		SetLastError( NTE_FAIL );
 		return FALSE;
 	}
 	
-	if ( !pubKeyToString( pKeyInfo->pPubKey, szPubKey ) ){
+	if ( !pubKeyToString( pKeyInfo, szPubKey ) ){
 		/* \todo release resources.*/
 		SetLastError( NTE_FAIL );
 		return FALSE;
@@ -175,7 +193,7 @@ BOOL genKeyPair( PROV_CTX* pProvCtx, KEY_INFO* pKey ){
 	WritePrivateProfileStringA( 
 		"PUBLICKEY",
 		"PUBLICKEY",
-		szPrKey,
+		szPubKey,
 		pContainerIRZ->szToken);
 
 	delete[] szPrKey;
@@ -197,7 +215,7 @@ DWORD getKeyLen( ALG_ID algid ){
 }
 
 BOOL releaseKey( PROV_CTX *pProvCtx, KEY_INFO *pKey ){
-	delete pKey->hKeyInformation;
+	delete (KEY_SIGN_INFO*) pKey->hKeyInformation;
 	return TRUE;
 }
 
@@ -208,13 +226,17 @@ BOOL setHash( PROV_CTX* pProvCtx, HASH_INFO *pHash, const BYTE *pbHashValue){
 		return FALSE;
 #endif
 
-	if ( pHash->hHashInformation == NULL )
+	if ( pHash->hHashInformation == NULL ){
+		SetLastError(NTE_BAD_HASH_STATE);
 		return FALSE;
+	}
 
 	HASH_SERVICE_INFO *pHashInfo = (HASH_SERVICE_INFO *)pHash->hHashInformation;
 	switch ( pHash->algid ){
 		case CALG_GOST_HASH:
 			memcpy(pHashInfo->bDataHashed, pbHashValue, HASH_BYTE_LEN );
+			pHashInfo->bValueIsSet = TRUE;
+			break;
 		default:
 			SetLastError( NTE_BAD_ALGID );
 			return FALSE;
@@ -222,18 +244,28 @@ BOOL setHash( PROV_CTX* pProvCtx, HASH_INFO *pHash, const BYTE *pbHashValue){
 	return TRUE;
 }
 
-BOOL createHash(PROV_CTX* pProvCtx, HASH_INFO* pHash ){
-	HASH_SERVICE_INFO *pHashInfo = (HASH_SERVICE_INFO *) pHash->hHashInformation;
+BOOL createHash(PROV_CTX* pProvCtx, HASH_INFO **ppHash ){
+
+	HASH_SERVICE_INFO *pHashInfo = NULL;
+
 	try {
+		*ppHash = new HASH_INFO;
 		pHashInfo = new HASH_SERVICE_INFO;
 	} catch (std::bad_alloc ){
+		SetLastError( NTE_NO_MEMORY );
 		return FALSE;
 	}
+	(*ppHash)->algid = CALG_GOST_HASH;
+	(*ppHash)->dwHashLen = GOST_HASH_BITS/CHAR_BIT;
+	(*ppHash)->finished = FALSE;
+	(*ppHash)->hHashInformation = pHashInfo;
 
 	memset( pHashInfo->bDataHashed, 0, HASH_BYTE_LEN );
 	memset( pHashInfo->bDataRest, 0, HASH_BYTE_LEN );
 	memset( pHashInfo->bLen, 0, HASH_BYTE_LEN );
-	memset( pHashInfo->bLen, 0, HASH_BYTE_LEN );
+	memset( pHashInfo->bSum, 0, HASH_BYTE_LEN );
+	pHashInfo->dwDataRestLen = 0;
+	pHashInfo->bValueIsSet = FALSE;
 	return TRUE;
 }
 
@@ -244,6 +276,11 @@ BOOL updateHash(PROV_CTX *PRpProvCtx,
 	HASH_SERVICE_INFO *pHashInfo = (HASH_SERVICE_INFO *) pHash->hHashInformation;
 	DWORD dwRestLen = cbDataLen; //< length of  data rest to be feeded.
 	const BYTE *pbRest = pbData;//< rest of data to be feeded.
+
+	if ( pHashInfo->bValueIsSet == TRUE ){
+		SetLastError( NTE_BAD_HASH_STATE );
+		return FALSE;
+	}
 
 	if ( pHashInfo == NULL ){
 		SetLastError( NTE_BAD_HASH );
@@ -286,7 +323,7 @@ BOOL updateHash(PROV_CTX *PRpProvCtx,
 		}
 	}
 	
-	while ( dwRestLen > HASH_BYTE_LEN ){
+	while ( dwRestLen >= HASH_BYTE_LEN ){
 		stephash( pHashInfo->bDataHashed, pbRest, pHashInfo->bDataHashed );
 		// calculate control length.
 
@@ -326,8 +363,10 @@ BOOL getHash( PROV_CTX *pProvCtx,
 				DWORD *pcbHashLen ){
 
 	HASH_SERVICE_INFO *pHashInfo = (HASH_SERVICE_INFO *) pHash->hHashInformation;
+
+
 	// if there is unfeeded data then feed it, pad if require.
-	if ( pHashInfo->dwDataRestLen > 0 ){
+	if ( !pHashInfo->bValueIsSet && pHashInfo->dwDataRestLen > 0 ){
 		const DWORD dwPaddingLen = HASH_BYTE_LEN - pHashInfo->dwDataRestLen;
 		//< Number of bytes to pad the pHash->bDataRest
 		for(unsigned i=pHashInfo->dwDataRestLen-1; i<HASH_BYTE_LEN; i++)
@@ -361,6 +400,7 @@ BOOL getHash( PROV_CTX *pProvCtx,
 
 BOOL releaseHash( PROV_CTX *pProvCtx, HASH_INFO *pHash ){
 	delete pHash->hHashInformation;
+	delete pHash;
 	return TRUE;
 }
 
@@ -379,7 +419,7 @@ BOOL exportPubKey(IN PROV_CTX* pProvCtx,
 		return FALSE;
 	}
 	
-	if ( !extractPublicKey( pKeyInfo->pPubKey, pbData ) ){
+	if ( !extractPublicKey( pKeyInfo, pbData ) ){
 		SetLastError( NTE_FAIL );
 		return FALSE;
 	}
@@ -409,22 +449,19 @@ BOOL importPubKey(
 {
 	
 	KEY_SIGN_INFO *pKeyInfo = (KEY_SIGN_INFO *) pKey->hKeyInformation;
-	pKeyInfo = NULL;
-	pKeyInfo = new KEY_SIGN_INFO;
 
 	if ( dwDataLen != PUBLICKEY_BYTE_LEN + sizeof(DWORD) ){
 		SetLastError( NTE_BAD_DATA );
 		return FALSE;
 	}
 
-	if ( !derivePubKey( pKeyInfo->pPubKey, pbData ) ){
+	if ( !derivePubKey( pKeyInfo, pbData ) ){
 		SetLastError( NTE_BAD_DATA );
 		return FALSE;
 	}
-
-	DWORD dwParamSet = *LPDWORD( pbData + PUBLICKEY_BYTE_LEN );
-	pKeyInfo->params = PARAMS_GOST_SIGN( dwParamSet );
-	pKeyInfo->pPrKey = NULL;
+	// \todo handle paramset.
+	//DWORD dwParamSet = *LPDWORD( pbData + PUBLICKEY_BYTE_LEN );
+	//pKeyInfo->params = PARAMS_GOST_SIGN( dwParamSet );
 	return TRUE;
 }
 

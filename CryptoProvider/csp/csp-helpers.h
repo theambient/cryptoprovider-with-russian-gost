@@ -7,9 +7,8 @@
 #include "gost/params.h"
 #include "ecc/ecc.h"
 #include "constants.h"
-
-typedef IppsBigNumState	PRIVATE_KEY;
-typedef IppsECCPState	PUBLIC_KEY;
+#include "csp-struct.h"
+#include "gost/gost.h"
 
 /*	\brief Convert private key to string representation.
  *	
@@ -23,7 +22,7 @@ typedef IppsECCPState	PUBLIC_KEY;
  *	\note	The function DOES NOT allocate memory.
  *
  */
-BOOL privateKeyToString( const PRIVATE_KEY *pPrKey, LPSTR szPrKey );
+BOOL privateKeyToString( const KEY_SIGN_INFO *pKey, LPSTR szPrKey );
 
 /*	\brief Convert public key to string representation.
  *	
@@ -37,11 +36,11 @@ BOOL privateKeyToString( const PRIVATE_KEY *pPrKey, LPSTR szPrKey );
  *	\note	The function DOES NOT allocate memory.
  *
  */
-BOOL pubKeyToString( const PUBLIC_KEY *pPubKey, LPSTR szPubKey );
+BOOL pubKeyToString( const KEY_SIGN_INFO *pKey, LPSTR szPubKey );
 
-/*	\brief Extract PURE public key from PUBLIC_KEY struc.
+/*	\brief Extract PURE public key from key pair context.
  *	
- *	\param pPubKey		- public key.
+ *	\param pKeyInfo		- context containing the public key.
  *	\param pbData		- buffer to store the public key.
  *	\param pdwDataLen	- contains length of supplied buffer, 
  *							upon succeed contains number of copied bytes.
@@ -52,11 +51,11 @@ BOOL pubKeyToString( const PUBLIC_KEY *pPubKey, LPSTR szPubKey );
  *	\note	The function DOES NOT allocate memory.
  *
  */
-BOOL extractPublicKey( const PUBLIC_KEY *pPubKey, BYTE *pbData, DWORD *pdwDataLen );
+BOOL extractPublicKey( const KEY_SIGN_INFO *pKey, BYTE *pbData, DWORD *pdwDataLen );
 
 /*	\brief Derive PUBLIC_KEY struc from key DATA.
  *	
- *	\param pPubKey		- adress where to allocate memory and place the public key.
+ *	\param pKeyInfo		- context where to place the public key.
  *	\param pbData		- buffer containing the pure public key data.
  *
  *	\return TRUE if conversation and storing succeeded,
@@ -65,11 +64,11 @@ BOOL extractPublicKey( const PUBLIC_KEY *pPubKey, BYTE *pbData, DWORD *pdwDataLe
  *	\note	The function ALLOCATES memory.
  *
  */
-BOOL derivePubKey( PUBLIC_KEY *&pPubKey, const BYTE *pbData );
+BOOL derivePubKey( KEY_SIGN_INFO *pKeyInfo, const BYTE *pbData );
 
 /*	\brief Derive PUBLIC_KEY struc from key STRING.
  *	
- *	\param pPubKey		- adress where to allocate memory and place the public key.
+ *	\param pKeyInfo		- context where to place the public key.
  *	\param szKey		- string containing the pure hex-encoded public key.
  *
  *	\return TRUE if conversation and storing succeeded,
@@ -78,12 +77,12 @@ BOOL derivePubKey( PUBLIC_KEY *&pPubKey, const BYTE *pbData );
  *	\note	The function ALLOCATES memory.
  *
  */
-BOOL derivePubKey( PUBLIC_KEY *&pPubKey, const LPSTR szKey );
+BOOL derivePubKey( KEY_SIGN_INFO *pKeyInfo, const LPSTR szKey );
 
 /*	\brief Derive PRIVATE_KEY struc from key DATA.
  *	
- *	\param pPrKey		- adress where to allocate memory and place the private key.
- *	\param pbData		- buffer containing the pure public key data.
+ *	\param pKeyInfo		- context where to place the private key.
+ *	\param pbData		- buffer containing the pure private key data.
  *
  *	\return TRUE if conversation and storing succeeded,
  *			FALSE otherwise.
@@ -91,12 +90,12 @@ BOOL derivePubKey( PUBLIC_KEY *&pPubKey, const LPSTR szKey );
  *	\note	The function ALLOCATES memory.
  *
  */
-BOOL derivePrivateKey( PRIVATE_KEY *&pPrKey, const BYTE *pbData );
+BOOL derivePrivateKey( KEY_SIGN_INFO *pKeyInfo, const BYTE *pbData );
 
 /*	\brief Derive PRIVATE_KEY struc from key STRING.
  *	
- *	\param pPrKey		- adress where to allocate memory and place the private key.
- *	\param szKey		- string containing the pure hex-encoded public key.
+ *	\param pKeyInfo		- context where to place the private key.
+ *	\param szKey		- string containing the pure hex-encoded private key.
  *
  *	\return TRUE if conversation and storing succeeded,
  *			FALSE otherwise.
@@ -104,7 +103,7 @@ BOOL derivePrivateKey( PRIVATE_KEY *&pPrKey, const BYTE *pbData );
  *	\note	The function ALLOCATES memory.
  *
  */
-BOOL derivePrivateKey( PRIVATE_KEY *&pPrKey, const LPSTR szKey );
+BOOL derivePrivateKey( KEY_SIGN_INFO *pKeyInfo, const LPSTR szKey );
 
 /*	\brief Generate key pair.
  *	
@@ -175,25 +174,31 @@ BOOL genRandom( const DWORD dwLen, BYTE* pbData, Rand &rand );
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-inline BOOL privateKeyToString( const PRIVATE_KEY *pPrKey, LPSTR szPrKey ){
-	return bnConvertToString( pPrKey, szPrKey );
+inline BOOL privateKeyToString( const KEY_SIGN_INFO *pKey, LPSTR szPrKey ){
+	return bnConvertToString( pKey->pPrKey, szPrKey );
 }
 
-inline BOOL pubKeyToString( const PUBLIC_KEY *pPubKey, LPSTR szPubKey ){
-	eccPointToString( (const IppsECCPPointState*)pPubKey, szPubKey );
+inline BOOL pubKeyToString( const KEY_SIGN_INFO *pKey, LPSTR szPubKey ){
+	eccPointToString( 
+		(const IppsECCPPointState*)pKey->pPubKey,
+		pKey->params.pECC,
+		szPubKey );
 	return TRUE;
 }
 
-inline BOOL extractPublicKey( const PUBLIC_KEY *pPubKey, BYTE *pbData ){
-	eccPointToOctet( (const IppsECCPPointState*)pPubKey, pbData );
+inline BOOL extractPublicKey( const KEY_SIGN_INFO *pKey, BYTE *pbData ){
+	eccPointToOctet( 
+		(const IppsECCPPointState*)pKey->pPubKey,
+		pKey->params.pECC,
+		pbData );
 	return TRUE;
 }
 
-inline BOOL derivePubKey( PUBLIC_KEY *&pPubKey, const BYTE *pbData ){
-	DWORD dwParamSet = *LPDWORD( pbData + PUBLICKEY_BYTE_LEN );
-	PARAMS_GOST_SIGN params( dwParamSet );
-	pPubKey = (PUBLIC_KEY*) eccPointNew( pbData, PUBLICKEY_BYTE_LEN, params.pECC );
-	if ( pPubKey != NULL )
+inline BOOL derivePubKey( KEY_SIGN_INFO *pKeyInfo, const BYTE *pbData ){
+	//DWORD dwParamSet = *LPDWORD( pbData + PUBLICKEY_BYTE_LEN );
+	//PARAMS_GOST_SIGN params( dwParamSet );
+	pKeyInfo->pPubKey = (PUBLIC_KEY*) eccPointNew( pbData, PUBLICKEY_BYTE_LEN, pKeyInfo->params.pECC );
+	if ( pKeyInfo->pPubKey != NULL )
 		return TRUE;
 	else
 		return FALSE;
@@ -238,11 +243,31 @@ inline BOOL verify(
 		&params);		
 }
 
-inline BOOL derivePrivateKey( PRIVATE_KEY *&pPrKey, const LPSTR szKey ){
-	pPrKey = (PRIVATE_KEY*) bnNew( szKey, iBNSize );
-	if ( pPrKey != NULL )
+inline BOOL derivePrivateKey( KEY_SIGN_INFO *pKeyInfo, const LPSTR szKey ){
+
+	//KEY_SIGN_INFO *pKeyInfo = (KEY_SIGN_INFO*) pKey->hKeyInformation;
+	pKeyInfo->pPrKey = (PRIVATE_KEY*) bnNew( szKey, iBNSize );
+	if ( pKeyInfo->pPrKey != NULL )
 		return TRUE;
 	else 
+		return FALSE;
+}
+
+inline BOOL derivePubKey( KEY_SIGN_INFO *pKeyInfo, const LPSTR szKey ){
+
+	//KEY_SIGN_INFO *pKeyInfo = (KEY_SIGN_INFO*) pKey->hKeyInformation;
+	CHAR sX[PUBLICKEY_CHAR_LEN/2+1];
+	memcpy( sX, szKey, PUBLICKEY_CHAR_LEN/2 );
+	sX[PUBLICKEY_CHAR_LEN/2] = '\0';
+	IppsBigNumState *pX = bnNew( sX, iBNSize );
+	IppsBigNumState *pY = bnNew( szKey + PUBLICKEY_CHAR_LEN/2, iBNSize );
+	
+	IppsECCPPointState *pPubKey = eccPointNew( pX, pY, pKeyInfo->params.pECC );
+	pKeyInfo->pPubKey = (PUBLIC_KEY*) pPubKey;
+
+	if ( pPubKey != NULL )
+		return TRUE;
+	else
 		return FALSE;
 }
 
@@ -254,5 +279,7 @@ inline BOOL genRandom( const DWORD dwLen, BYTE* pbData, Rand &rand ){
 		return FALSE;
 	return TRUE;
 }
+
+
 
 #endif //_CSP_HELPERS_HEADER_FILE

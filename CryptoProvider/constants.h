@@ -9,15 +9,18 @@
 // Private key hex representation length in chars
 #define PRIVATEKEY_CHAR_LEN 64
 // byte length
-#define PRIVATEKEY_BYTE_LEN 64
+#define PRIVATEKEY_BYTE_LEN 32
 
 // Public key hex representation length in chars
 #define PUBLICKEY_CHAR_LEN 128
 // byte length
-#define PUBLICKEY_BYTE_LEN 128
+#define PUBLICKEY_BYTE_LEN 64
 
 // GOST R 34.11-94 hash Length
 #define HASH_BYTE_LEN 32
+
+// GOST 28147-89 encrypt/decrypt block length in bytes.
+#define CRYPTBLOCK_BYTE_LEN 32
 
 
 // length in bytes of GOST R 34.11-94 algorithm hash-function

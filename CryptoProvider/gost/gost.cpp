@@ -14,6 +14,9 @@ void digest(const byte* pBuf, const int iBufSize, byte *pDigest, const Params341
 void sign(const byte *pDigestMsg, const IppsBigNumState *pPrivateKey, byte *pSignature, const PARAMS_GOST_SIGN *params, Rand & rand){
 	IppsBigNumState *pE = bnNew( iBNSize, pDigestMsg );
 	ippsMod_BN( pE, params->pOrder, pE );
+#ifdef _TEST_SIGN
+	std::cout << pE << std::endl;
+#endif
 	Ipp32u iResult;
 	ippsCmpZero_BN( pE, &iResult );
 	if ( iResult == IS_ZERO )

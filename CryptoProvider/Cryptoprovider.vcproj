@@ -42,7 +42,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="$(ProjectDir)"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;_IMPLEMENT_INTEL; _CRT_SECURE_NO_WARNINGS; _VERBOSE; _VERBOSE_VERBOSE; _TEST_VERIFY"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;_IMPLEMENT_INTEL; _CRT_SECURE_NO_WARNINGS; _VERBOSE; _VERBOSE_VERBOSE;"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				SmallerTypeCheck="false"
@@ -175,11 +175,11 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
-				RelativePath=".\bignum\intel\bignum.h"
+				RelativePath=".\bignum\bignum.h"
 				>
 			</File>
 			<File
-				RelativePath=".\bignum\bignum.h"
+				RelativePath=".\bignum\intel\bignum.h"
 				>
 			</File>
 			<File
@@ -228,10 +228,6 @@
 			</File>
 			<File
 				RelativePath=".\gost\hash.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ini\ini.h"
 				>
 			</File>
 			<File
@@ -312,10 +308,6 @@
 			</File>
 			<File
 				RelativePath=".\gost\hash.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\ini\ini.cpp"
 				>
 			</File>
 			<File

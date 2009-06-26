@@ -143,7 +143,7 @@ bool testSignHash(bool bVerbose){
 		std::cout << "Signature:\n" << pbSignature << pbSignature + GOSTR34102001SigLen/2 << std::endl;
 	
 	BYTE bBenchmarkSignature[64];
-	strtobyte( "1456C64BA4642A1653C235A98A60249BCD6D3F746B631DF928014F6C5BF9C4041AA28D2F1AB148280CD9ED56FEDA41974053554A42767B83AD043FD39DC0493" , bBenchmarkSignature );
+	strtobyte( "41AA28D2F1AB148280CD9ED56FEDA41974053554A42767B83AD043FD39DC049301456C64BA4642A1653C235A98A60249BCD6D3F746B631DF928014F6C5BF9C40" , bBenchmarkSignature );
 	if ( memcmp ( bBenchmarkSignature, pbSignature, 64 )==0 )
 		return TRUE;
 	else
@@ -209,7 +209,105 @@ bool testVerifyHash(bool bVerbose){
 	return true;
 }
 
+bool testHashData(bool bVerbose){
 
+	HCRYPTHASH hHash;
+	BYTE bDataToHash[32];
+	BYTE bHashValue[32];
+	BYTE bBenchmarkHashValue[32];
+	//strtobyte( "73657479622032333D6874676E656C202C6567617373656D2073692073696854", bDataToHash );
+	memcpy( bDataToHash, "This is message, length=32 bytes", 32 );
+	strtobyte( "FAFF37A615A816691CFF3EF8B68CA247E09525F39F8119832EB81975D366C4B1", bBenchmarkHashValue );
+
+	if (!(CryptCreateHash(hProv,
+					  CALG_GOST_HASH,
+					  0,
+					  0,
+					  &hHash)))
+	{   
+		if ( bVerbose )
+			printf("CryptCreateHash Failed\n");
+		return false;
+	}
+
+	DWORD dwHashLen = 32;
+	if ( !CryptHashData( hHash, bDataToHash, 32, 0 ) ){
+		if ( bVerbose )
+			printf("CryptHashData Failed\n");
+		return false;
+	}
+
+	if ( !CryptGetHashParam( hHash, HP_HASHVAL, bHashValue, &dwHashLen, 0 ) ){
+		if ( bVerbose )
+			printf("CryptGetHashParam Failed\n");
+		return false;
+	}
+
+	if ( memcmp( bHashValue, bBenchmarkHashValue, dwHashLen ) != 0 ){
+		if ( bVerbose )
+			std::cout << bHashValue << std::endl;
+		return false;
+	}
+
+	if ( !CryptDestroyHash( hHash ) ){
+		if ( bVerbose )
+			std::cout << "CryptDestroyHash failed" << std::endl;
+		return false;
+	}
+
+	return true;
+
+}
+
+bool testHashDataLong(bool bVerbose){
+
+	HCRYPTHASH hHash;
+	BYTE bDataToHash[50];
+	BYTE bHashValue[32];
+	BYTE bBenchmarkHashValue[32];
+	//strtobyte( "73657479622032333D6874676E656C202C6567617373656D2073692073696854", bDataToHash );
+	memcpy( bDataToHash, "Suppose the original message has length = 50 bytes", 50 );
+	strtobyte( "0852F5623B89DD57AEB4781FE54DF14EEAFBC1350613763A0D770AA657BA1A47", bBenchmarkHashValue );
+
+	if (!(CryptCreateHash(hProv,
+					  CALG_GOST_HASH,
+					  0,
+					  0,
+					  &hHash)))
+	{   
+		if ( bVerbose )
+			printf("CryptCreateHash Failed\n");
+		return false;
+	}
+
+	DWORD dwHashLen = 32;
+	if ( !CryptHashData( hHash, bDataToHash, 50, 0 ) ){
+		if ( bVerbose )
+			printf("CryptHashData Failed\n");
+		return false;
+	}
+
+	if ( !CryptGetHashParam( hHash, HP_HASHVAL, bHashValue, &dwHashLen, 0 ) ){
+		if ( bVerbose )
+			printf("CryptGetHashParam Failed\n");
+		return false;
+	}
+
+	if ( memcmp( bHashValue, bBenchmarkHashValue, dwHashLen ) != 0 ){
+		if ( bVerbose )
+			std::cout << bHashValue << std::endl;
+		return false;
+	}
+
+	if ( !CryptDestroyHash( hHash ) ){
+		if ( bVerbose )
+			std::cout << "CryptDestroyHash failed" << std::endl;
+		return false;
+	}
+
+	return true;
+
+}
 /*
 bool test(){
 

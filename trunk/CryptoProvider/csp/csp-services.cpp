@@ -364,17 +364,23 @@ BOOL getHash( PROV_CTX *pProvCtx,
 
 	HASH_SERVICE_INFO *pHashInfo = (HASH_SERVICE_INFO *) pHash->hHashInformation;
 
+	if ( *pcbHashLen < HASH_BYTE_LEN ){
+		SetLastError( ERROR_MORE_DATA );
+		return FALSE;
+	}
 
 	// if there is unfeeded data then feed it, pad if require.
 	if ( !pHashInfo->bValueIsSet && pHashInfo->dwDataRestLen > 0 ){
 		const DWORD dwPaddingLen = HASH_BYTE_LEN - pHashInfo->dwDataRestLen;
 		//< Number of bytes to pad the pHash->bDataRest
-		for(unsigned i=pHashInfo->dwDataRestLen-1; i<HASH_BYTE_LEN; i++)
+		for(unsigned i=pHashInfo->dwDataRestLen; i<HASH_BYTE_LEN; i++)
 			pHashInfo->bDataRest[i] = 0;
+		//memmove( pHashInfo->bDataRest+dwPaddingLen, pHashInfo->bDataRest, pHashInfo->dwDataRestLen );
+		//memset( pHashInfo->bDataRest, 0, dwPaddingLen );
 		stephash( pHashInfo->bDataHashed, pHashInfo->bDataRest, pHashInfo->bDataHashed );
 		// calculate control length.
 
-		int c = pHashInfo->dwDataRestLen;
+		int c = pHashInfo->dwDataRestLen*8;
 		for (unsigned j = 0; j < HASH_BYTE_LEN; j++){
 			c += pHashInfo->bLen[j];
 			pHashInfo->bLen[j] = c & 0xFF;
@@ -383,16 +389,22 @@ BOOL getHash( PROV_CTX *pProvCtx,
 		// calculate control sum.
 		c = 0;
 		for (unsigned j = 0; j < HASH_BYTE_LEN; j++) {
-			c += pHashInfo->bDataHashed[j] + pHashInfo->bSum[j];
+			c += pHashInfo->bDataRest[j] + pHashInfo->bSum[j];
 			pHashInfo->bSum[j] = c & 0xFF;
 			c >>= 8;
 		}
 	}
-	if ( *pcbHashLen < HASH_BYTE_LEN ){
-		SetLastError( ERROR_MORE_DATA );
-		return FALSE;
+	if ( !pHashInfo->bValueIsSet ){
+		// Feed control length.
+		stephash( pHashInfo->bDataHashed, pHashInfo->bLen, pHashInfo->bDataHashed );
+		// Feed control sum.
+		stephash( pHashInfo->bDataHashed, pHashInfo->bSum, pHashInfo->bDataHashed );
+		for (unsigned i=0; i< HASH_BYTE_LEN; i++ )
+			pbHashValue[i] = pHashInfo->bDataHashed[HASH_BYTE_LEN - i - 1];
+	} else {
+		memcpy( pbHashValue, pHashInfo->bDataHashed, HASH_BYTE_LEN );
 	}
-	memcpy( pbHashValue, pHashInfo->bDataHashed, HASH_BYTE_LEN );
+
 	*pcbHashLen = HASH_BYTE_LEN;
 	pHash->finished = true;
 	return TRUE;

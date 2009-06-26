@@ -29,9 +29,27 @@
 
 int main(int cArg, char *rgszArg[])
 {
-	testAcquireContext(true);
-	testSignHash( true );
-	testVerifyHash( true );
+	bool bVerbose = cArg> 1;
+	testAcquireContext(bVerbose);
+	if ( testSignHash( bVerbose ) )
+		std::cout << "CryptSignHash test SUCCEEDED" << std::endl;
+	else
+		std::cout << "CryptSignHash test FAULT" << std::endl;;
+	if (testVerifyHash( bVerbose ))
+		std::cout << "CryptVerifyHash test SUCCEEDED" << std::endl;
+	else
+		std::cout << "CryptVerifyHash test FAULT" << std::endl;
+
+	if ( testHashData( true ) )
+		std::cout << "CryptHashData test SUCCEEDED" << std::endl;
+	else
+		std::cout << "CryptHashData test FAULT" << std::endl;;	
+
+	if ( testHashDataLong( true ) )
+		std::cout << "CryptHashData long data test SUCCEEDED" << std::endl;
+	else
+		std::cout << "CryptHashData long data test FAULT" << std::endl;;	
+
 	getchar();
 	return(0);
 }

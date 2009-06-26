@@ -10,7 +10,7 @@
 #include "params.h"
 
 typedef unsigned short int byte;
-
+#define TEST_COUNT 100
 
 void gost_check(){
 
@@ -32,7 +32,7 @@ void gost_check(){
 #ifdef _GOST_CONTROL_TEST
 	const unsigned test_count = 1;
 #else
-	const unsigned test_count = 10;
+	const unsigned test_count = TEST_COUNT;
 #endif
 	for (unsigned i=0; i<test_count; i++){
 #ifdef _GOST_CONTROL_TEST
@@ -43,13 +43,13 @@ void gost_check(){
 			bnrand( h_msg, MAX_SIZE);
 		} while ( isZero( h_msg, MAX_SIZE ) );
 #endif
-		std::cout << "Hash:" << std::endl;
-		std::cout << h_msg << std::endl;
+		//std::cout << "Hash:" << std::endl;
+		//std::cout << h_msg << std::endl;
 		//print( bnPubKey, 2*MAX_SIZE);
 		sign( h_msg, bnPrKey, signature, params);
-		std::cout << "Signature:\n";
-		print( signature, 2*MAX_SIZE );
-		std::cout << std::endl;
+		//std::cout << "Signature:\n";
+		//print( signature, 2*MAX_SIZE );
+		//std::cout << std::endl;
 
 #ifdef _GOST_CONTROL_TEST
 		DIGIT benchmark_signature[2*MAX_SIZE];
@@ -61,9 +61,9 @@ void gost_check(){
 #endif
 		const bool bCorrect = verify( h_msg, signature, bnPubKey, params);
 		if ( bCorrect )
-			std::cout << "DS verification result - TRUE" << std::endl;
+			std::cout << "test succeeded" << std::endl;
 		else
-			std::cout << "DS verification result - false" << std::endl;
+			std::cout << "test FAILED" << std::endl;
 	}
 }
 

@@ -26,7 +26,8 @@ bool testDecrypt();
 bool testDecrypt();
 
 bool testCreateHash();
-bool testHashData();
+bool testHashData(bool);
+bool testHashDataLong(bool);
 bool testSignHash(bool);
 bool testVerifyHash(bool);
 

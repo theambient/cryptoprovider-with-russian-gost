@@ -2,6 +2,7 @@
 #include "csp-services.h"
 #include "gost/gost.h"
 #include "gost/hash.h"
+#include "gost/crypt.h"
 #include "rand/rand.h"
 #include "constants.h"
 #include "csp-helpers.h"
@@ -525,3 +526,439 @@ BOOL genRandom(PROV_CTX *pProvCtx,
 	CONTAINER_IRZ * pContainerIRZ = (CONTAINER_IRZ *) pProvCtx->pContainer->hServiceInformation;
 	return genRandom( dwLen, pbData, pContainerIRZ->rand );
 }
+
+BOOL createSimmKey( PROV_CTX *pProvCtx, KEY_INFO **ppKey ){
+
+	KEY_INFO *pKey = new KEY_INFO;
+	*ppKey = pKey;
+
+	// Fill in the key context.
+	pKey->algId = 0;
+	pKey->blockLen = 0;
+	pKey->dwKeySpec = 0;
+	pKey->iv = NULL;
+	pKey->ivLen = 0;
+	pKey->length = 0;
+	pKey->salt = NULL;
+	pKey->saltLen = 0;
+	pKey->mode = 0;
+
+	KEY_CRYPT_INFO *pKeyInfo = new KEY_CRYPT_INFO;
+	//pKeyInfo->dwDataRestLen = 0;
+	pKey->hKeyInformation = (HANDLE) pKeyInfo;
+	return TRUE;
+}
+
+BOOL genSimmKey( PROV_CTX *pProvCtx, KEY_INFO *pKey ){
+
+	KEY_CRYPT_INFO *pKeyInfo = ( KEY_CRYPT_INFO *) pKey->hKeyInformation;
+	// \todo Fix the explicit using intel library. 
+	Rand rand;
+	IppsBigNumState *pBN = rand( CRYPTKEY_BYTE_LEN );
+	bnGet( pBN, pKeyInfo->bKey, CRYPTKEY_BYTE_LEN );
+	bnRelease( pBN );
+	return TRUE;
+}
+
+BOOL releaseSimmKey( PROV_CTX *pProvCtx, KEY_INFO *pKey ){
+	delete (KEY_CRYPT_INFO*) pKey->hKeyInformation;
+	return TRUE;
+}
+
+DWORD getCryptDataLen( PROV_CTX *pProvCtx, const KEY_INFO *pKey, const DWORD dwDataLen, const BOOL bFinal ){
+
+	KEY_CRYPT_INFO *pKeyInfo = ( KEY_CRYPT_INFO *) pKey->hKeyInformation;
+
+	if ( dwDataLen == 0 )
+		return CRYPTBLOCK_BYTE_LEN;
+
+	switch ( pKeyInfo->params.dwMode ){
+		
+		case GOST_CRYPT_ECB:
+			if ( dwDataLen%CRYPTBLOCK_BYTE_LEN == 0 )
+				return dwDataLen;
+			else
+				return  (dwDataLen/CRYPTBLOCK_BYTE_LEN + bFinal)*CRYPTBLOCK_BYTE_LEN;
+			break;
+		case GOST_CRYPT_CBC:
+			// The only difference with ECB in IV storring in ciphertext. 
+			if ( dwDataLen%CRYPTBLOCK_BYTE_LEN == 0 )
+				return dwDataLen + CRYPTBLOCK_BYTE_LEN;
+			else
+				return  (dwDataLen/CRYPTBLOCK_BYTE_LEN + bFinal+1)*CRYPTBLOCK_BYTE_LEN;
+			break;
+		case GOST_CRYPT_OFB:
+		case GOST_CRYPT_MAC:
+			return CRYPTBLOCK_BYTE_LEN;
+		default:
+			SetLastError(NTE_KEYSET_ENTRY_BAD);
+			return 0;
+	}
+
+}
+
+
+
+BOOL encryptGOST_ECB( PROV_CTX *pProvCtx, KEY_INFO *pKey, BYTE* pbData, DWORD *pdwDataLen, const BOOL bFinal ){
+
+	KEY_CRYPT_INFO *pKeyInfo = ( KEY_CRYPT_INFO *) pKey->hKeyInformation;
+
+	BYTE bCipherText[CRYPTBLOCK_BYTE_LEN];
+	const DWORD dwDataLen = *pdwDataLen; //<Local copy of plaintext size.
+
+	if ( !bFinal && dwDataLen % CRYPTBLOCK_BYTE_LEN != 0  ){
+		SetLastError( NTE_BAD_LEN );
+		return FALSE;
+	}
+
+	BYTE* pbBlockToEncrypt = pbData; //< Next block to encrypt.
+	const BYTE* pbLastBlockBegin = pbData + dwDataLen - CRYPTBLOCK_BYTE_LEN; 
+	//< Last possible block to encrypt, actually convenient boundary for the while loop.
+	
+	BYTE* pbBlockToWrite = pbData; //< Block to which write encrypted data.
+	
+	// Encrypt data block by block until exhaust.
+	while( pbBlockToEncrypt <= pbLastBlockBegin ){
+		encryptECB( pbBlockToEncrypt, pKeyInfo->bKey, bCipherText, pKeyInfo->params );
+		memcpy( pbBlockToWrite, bCipherText, CRYPTBLOCK_BYTE_LEN );
+		pbBlockToWrite += CRYPTBLOCK_BYTE_LEN;
+		pbBlockToEncrypt += CRYPTBLOCK_BYTE_LEN;
+	}
+	if ( !bFinal ){
+		if ( pbBlockToEncrypt - pbData != dwDataLen ){
+			SetLastError( NTE_FAIL );
+			return FALSE;
+		}
+	} else {
+		// Pad the rest data and encrypt it.
+		BYTE bFinalBlock[CRYPTBLOCK_BYTE_LEN];
+		DWORD dwFinalDataLen = dwDataLen - (pbBlockToEncrypt - pbData);
+		memcpy( bFinalBlock, pbBlockToEncrypt, dwFinalDataLen );
+		memset( bFinalBlock + dwFinalDataLen, 0, CRYPTBLOCK_BYTE_LEN - dwFinalDataLen );
+		// Encrypt data in proper and write it.
+		encryptECB( bFinalBlock, pKeyInfo->bKey, bCipherText, pKeyInfo->params );
+		memcpy( pbBlockToWrite, bCipherText, CRYPTBLOCK_BYTE_LEN );
+		pbBlockToWrite += CRYPTBLOCK_BYTE_LEN;
+	}
+
+	*pdwDataLen = pbBlockToWrite - pbData;
+	return TRUE;
+
+}
+
+BOOL decryptGOST_ECB( PROV_CTX *pProvCtx, KEY_INFO *pKey, BYTE* pbData, DWORD *pdwDataLen, const BOOL bFinal ){
+
+	KEY_CRYPT_INFO *pKeyInfo = (KEY_CRYPT_INFO*) pKey->hKeyInformation;
+	BYTE bPlainText[CRYPTBLOCK_BYTE_LEN];
+
+	const DWORD dwDataLen = *pdwDataLen; //<Local copy of ciphertext size.
+
+	if ( dwDataLen % CRYPTBLOCK_BYTE_LEN != 0  ){
+		SetLastError( NTE_BAD_LEN );
+		return FALSE;
+	}
+
+	
+	BYTE* pbBlockToDecrypt = pbData; //< Next block to decrypt.
+	const BYTE* pbLastBlockBegin = pbData + dwDataLen - CRYPTBLOCK_BYTE_LEN; 
+	//< Last possible block to decrypt, actually convenient boundary for the while loop.
+	
+	BYTE* pbBlockToWrite = pbData; //< Block to which write decrypted data.
+	BYTE* pbPrevCipherText = pbData;
+
+	// Decrypt data block by block until exhaust.
+	while( pbBlockToDecrypt <= pbLastBlockBegin ){
+
+		decryptECB( pbBlockToDecrypt, pKeyInfo->bKey, bPlainText, pKeyInfo->params );
+		memcpy( pbBlockToWrite, bPlainText, CRYPTBLOCK_BYTE_LEN );
+		pbBlockToWrite += CRYPTBLOCK_BYTE_LEN;
+		pbBlockToDecrypt += CRYPTBLOCK_BYTE_LEN;
+	}
+	if ( !bFinal ){
+		if ( pbBlockToDecrypt - pbData != dwDataLen ){
+			SetLastError( NTE_FAIL );
+			return FALSE;
+		}
+	} else {
+		// Pad the rest data and decrypt it.
+		BYTE bFinalBlock[CRYPTBLOCK_BYTE_LEN];
+		DWORD dwFinalDataLen = dwDataLen - (pbBlockToDecrypt - pbData);
+		memcpy( bFinalBlock, pbBlockToDecrypt, dwFinalDataLen );
+		memset( bFinalBlock + dwFinalDataLen, 0, CRYPTBLOCK_BYTE_LEN - dwFinalDataLen );
+		// Decrypt data in proper and write it.
+		decryptECB( bFinalBlock, pKeyInfo->bKey, bPlainText, pKeyInfo->params );
+		memcpy( pbBlockToWrite, bPlainText, CRYPTBLOCK_BYTE_LEN );
+		pbBlockToWrite += CRYPTBLOCK_BYTE_LEN;
+	}
+
+	//*pdwDataLen = pbBlockToWrite - pbData;
+
+	return TRUE;
+
+}
+
+BOOL encryptGOST_CBC( PROV_CTX *pProvCtx, KEY_INFO *pKey, BYTE* pbData, DWORD *pdwDataLen, const BOOL bFinal ){
+
+	KEY_CRYPT_INFO *pKeyInfo = (KEY_CRYPT_INFO*) pKey->hKeyInformation;
+	BYTE bCipherText[CRYPTBLOCK_BYTE_LEN];
+	const DWORD dwDataLen = *pdwDataLen; //<Local copy of plaintext size.
+
+	if ( !bFinal && dwDataLen % CRYPTBLOCK_BYTE_LEN != 0  ){
+		SetLastError( NTE_BAD_LEN );
+		return FALSE;
+	}
+
+	BYTE* pbBlockToEncrypt = pbData; //< Next block to encrypt.
+	const BYTE* pbLastBlockBegin = pbData + dwDataLen - CRYPTBLOCK_BYTE_LEN; 
+	//< Last possible block to encrypt, actually convenient boundary for the while loop.
+	
+	BYTE* pbBlockToWrite = pbData; //< Block to which write encrypted data.
+	
+	// Encrypt data block by block until exhaust.
+	// Generate random IV.
+	BYTE bIV[CRYPTBLOCK_BYTE_LEN];
+	genRandom( pProvCtx, CRYPTBLOCK_BYTE_LEN, bIV );
+	memcpy( bCipherText, bIV, CRYPTBLOCK_BYTE_LEN ); 
+	while( pbBlockToEncrypt <= pbLastBlockBegin ){
+		// Note that upon encryptCBC bCipherText contains new encrypted data. 
+		encryptCBC( pbBlockToEncrypt, pKeyInfo->bKey, bCipherText, bCipherText, pKeyInfo->params );
+		memcpy( pbBlockToWrite, bCipherText, CRYPTBLOCK_BYTE_LEN );
+		pbBlockToWrite += CRYPTBLOCK_BYTE_LEN;
+		pbBlockToEncrypt += CRYPTBLOCK_BYTE_LEN;
+	}
+	if ( !bFinal ){
+		if ( pbBlockToEncrypt - pbData != dwDataLen ){
+			SetLastError( NTE_FAIL );
+			return FALSE;
+		}
+	} else {
+		// Pad the rest data and encrypt it.
+		BYTE bFinalBlock[CRYPTBLOCK_BYTE_LEN];
+		DWORD dwFinalDataLen = dwDataLen - (pbBlockToEncrypt - pbData);
+		memcpy( bFinalBlock, pbBlockToEncrypt, dwFinalDataLen );
+		memset( bFinalBlock + dwFinalDataLen, 0, CRYPTBLOCK_BYTE_LEN - dwFinalDataLen );
+		// Encrypt data in proper and write it.
+		encryptCBC( bFinalBlock, pKeyInfo->bKey, bCipherText, bCipherText, pKeyInfo->params );
+		memcpy( pbBlockToWrite, bCipherText, CRYPTBLOCK_BYTE_LEN );
+		pbBlockToWrite += CRYPTBLOCK_BYTE_LEN;
+	}
+
+	// Add IV.
+	memcpy( pbBlockToWrite, bIV, CRYPTBLOCK_BYTE_LEN );
+	pbBlockToWrite += CRYPTBLOCK_BYTE_LEN;
+
+	*pdwDataLen = pbBlockToWrite - pbData;
+	return TRUE;
+
+}
+
+
+
+BOOL decryptGOST_CBC( PROV_CTX *pProvCtx, KEY_INFO *pKey, BYTE* pbData, DWORD *pdwDataLen, const BOOL bFinal ){
+
+	KEY_CRYPT_INFO *pKeyInfo = (KEY_CRYPT_INFO*) pKey->hKeyInformation;
+	BYTE bPlainText[CRYPTBLOCK_BYTE_LEN];
+
+	const DWORD dwDataLen = *pdwDataLen; //<Local copy of ciphertext size.
+
+	if ( dwDataLen % CRYPTBLOCK_BYTE_LEN != 0  ){
+		SetLastError( NTE_BAD_LEN );
+		return FALSE;
+	}
+
+	
+	BYTE* pbBlockToDecrypt = pbData; //< Next block to decrypt.
+	const BYTE* pbLastBlockBegin = pbData + dwDataLen - CRYPTBLOCK_BYTE_LEN; 
+	//< Last possible block to decrypt, actually convenient boundary for the while loop.
+	
+	BYTE* pbBlockToWrite = pbData; //< Block to which write decrypted data.
+	BYTE* pbPrevCipherText = pbData;
+	// In CBC mode process first block separately due to IV.
+	if ( pKeyInfo->params.dwMode == GOST_CRYPT_CBC ){
+		BYTE* bIV = pbData + dwDataLen - CRYPTBLOCK_BYTE_LEN;
+		decryptCBC( pbBlockToDecrypt, pKeyInfo->bKey, bIV, bPlainText, pKeyInfo->params );
+		pbBlockToWrite += CRYPTBLOCK_BYTE_LEN;
+		pbBlockToDecrypt += CRYPTBLOCK_BYTE_LEN;
+
+	}	
+	// Decrypt data block by block until exhaust.
+	while( pbBlockToDecrypt <= pbLastBlockBegin ){
+		//BYTE bTemp[CRYPTBLOCK_BYTE_LEN];
+		//memcpy( bTemp, bCipherText, CRYPTBLOCK_BYTE_LEN );
+		decryptCBC( pbBlockToDecrypt, pKeyInfo->bKey, pbPrevCipherText, bPlainText, pKeyInfo->params );
+		pbBlockToWrite += CRYPTBLOCK_BYTE_LEN;
+		pbBlockToDecrypt += CRYPTBLOCK_BYTE_LEN;
+	}
+	if ( !bFinal ){
+		if ( pbBlockToDecrypt - pbData != dwDataLen ){
+			SetLastError( NTE_FAIL );
+			return FALSE;
+		}
+	} else {
+		// Pad the rest data and decrypt it.
+		BYTE bFinalBlock[CRYPTBLOCK_BYTE_LEN];
+		DWORD dwFinalDataLen = dwDataLen - (pbBlockToDecrypt - pbData);
+		memcpy( bFinalBlock, pbBlockToDecrypt, dwFinalDataLen );
+		memset( bFinalBlock + dwFinalDataLen, 0, CRYPTBLOCK_BYTE_LEN - dwFinalDataLen );
+		// Decrypt data in proper and write it.
+		decryptCBC( bFinalBlock, pKeyInfo->bKey, pbPrevCipherText, bPlainText, pKeyInfo->params );
+		memcpy( pbBlockToWrite, bPlainText, CRYPTBLOCK_BYTE_LEN );
+		pbBlockToWrite += CRYPTBLOCK_BYTE_LEN;
+	}
+
+	*pdwDataLen = pbBlockToWrite - pbData;
+
+	return TRUE;
+
+}
+
+BOOL encryptGOST( PROV_CTX *pProvCtx, KEY_INFO *pKey, BYTE* pbData, DWORD *pdwDataLen, const BOOL bFinal ){
+	KEY_CRYPT_INFO *pKeyInfo = (KEY_CRYPT_INFO*) pKey->hKeyInformation;
+	switch( pKeyInfo->params.dwMode ){
+		case GOST_CRYPT_ECB:
+			encryptGOST_ECB( pProvCtx, pKey, pbData, pdwDataLen, bFinal );
+			break;
+		case GOST_CRYPT_CBC:
+			encryptGOST_CBC( pProvCtx, pKey, pbData, pdwDataLen, bFinal );
+			break;
+		default:
+			SetLastError( NTE_BAD_KEYSET_PARAM );
+			return FALSE;
+	}
+}
+
+BOOL decryptGOST( PROV_CTX *pProvCtx, KEY_INFO *pKey, BYTE* pbData, DWORD *pdwDataLen, const BOOL bFinal ){
+	KEY_CRYPT_INFO *pKeyInfo = (KEY_CRYPT_INFO*) pKey->hKeyInformation;
+	switch( pKeyInfo->params.dwMode ){
+		case GOST_CRYPT_ECB:
+			decryptGOST_ECB( pProvCtx, pKey, pbData, pdwDataLen, bFinal );
+			break;
+		case GOST_CRYPT_CBC:
+			decryptGOST_CBC( pProvCtx, pKey, pbData, pdwDataLen, bFinal );
+			break;
+		default:
+			SetLastError( NTE_BAD_KEYSET_PARAM );
+			return FALSE;
+	}
+}
+
+
+/*
+BOOL encryptGOST( PROV_CTX *pProvCtx, KEY_INFO *pKey, BYTE* pbData, const DWORD dwDataLen, const BOOL bFinal ){
+
+	KEY_CRYPT_INFO *pKeyInfo = (KEY_CRYPT_INFO*) pKey->hKeyInformation;
+	DWORD dwLenToPad;
+	BYTE bCipherText[CRYPTBLOCK_BYTE_LEN];
+	
+	if ( pKeyInfo->dwDataRestLen > 0 ){
+		dwLenToPad = CRYPTBLOCK_BYTE_LEN - pKeyInfo->dwDataRestLen;
+		if ( dwDataLen < dwLenToPad ){
+			memcpy( pKeyInfo->bDataRest, pbData, dwDataLen );
+			if ( !bFinal )
+				return TRUE;
+			else {
+				// Pad the block with zero.
+				memset( pKeyInfo->bDataRest + pKeyInfo->dwDataRestLen + dwDataLen, 0 , dwLenToPad - dwDataLen );
+			}
+
+		} else
+			memcpy( pKeyInfo->bDataRest, pbData, dwLenToPad );
+		encryptECB( pKeyInfo->bDataRest, pKeyInfo->bKey, bCipherText, pKeyInfo->params );
+		pKeyInfo->dwDataRestLen = 0;
+	}
+	BYTE* pbBlockToEncrypt = pbData + dwLenToPad; //< Next block to encrypt.
+	const BYTE* pbLastBlockBegin = pbData + dwDataLen - CRYPTBLOCK_BYTE_LEN; 
+	//< Last possible block to encrypt, actually convenient boundary for the while loop.
+	
+	BYTE* pbBlockToWrite = pbData; //< Block to which write encrypted data.
+	
+	// Encrypt data block by block until exhaust.
+	while( pbBlockToEncrypt <= pbLastBlockBegin ){
+		BYTE bTemp[CRYPTBLOCK_BYTE_LEN];
+		memcpy( bTemp, bCipherText, CRYPTBLOCK_BYTE_LEN );
+		encryptECB( pbBlockToEncrypt, pKeyInfo->bKey, bCipherText, pKeyInfo->params );
+		memcpy( pbBlockToWrite, bTemp, CRYPTBLOCK_BYTE_LEN );
+		pbBlockToWrite += CRYPTBLOCK_BYTE_LEN;
+	}
+	if ( !bFinal ){
+		pKeyInfo->dwDataRestLen = dwDataLen - (pbBlockToEncrypt - pbData);
+		memcpy( pKeyInfo->bDataRest, pbBlockToEncrypt, pKeyInfo->dwDataRestLen );
+		// Write last encrypted block.
+		memcpy( pbBlockToWrite, bCipherText, CRYPTBLOCK_BYTE_LEN );
+	} else {
+		// Pad the rest data and encrypt it.
+		BYTE bFinalBlock[CRYPTBLOCK_BYTE_LEN];
+		DWORD dwFinalDataLen = dwDataLen - (pbBlockToEncrypt - pbData);
+		memcpy( bFinalBlock, pbBlockToEncrypt, dwFinalDataLen );
+		memset( bFinalBlock + dwFinalDataLen, 0, CRYPTBLOCK_BYTE_LEN - dwFinalDataLen );
+		// Write last encrypted block.
+		memcpy( pbBlockToWrite, bCipherText, CRYPTBLOCK_BYTE_LEN );
+		pbBlockToWrite += CRYPTBLOCK_BYTE_LEN;
+		// Encrypt Data in proper and write it.
+		encryptECB( bFinalBlock, pKeyInfo->bKey, bCipherText, pKeyInfo->params );
+		memcpy( pbBlockToWrite, bCipherText, CRYPTBLOCK_BYTE_LEN );
+	}
+
+	return TRUE;
+
+}
+
+BOOL decryptGOST( PROV_CTX *pProvCtx, KEY_INFO *pKey, BYTE* pbData, const DWORD dwDataLen, const BOOL bFinal ){
+
+	KEY_CRYPT_INFO *pKeyInfo = (KEY_CRYPT_INFO*) pKey->hKeyInformation;
+	DWORD dwLenToPad;
+	BYTE bCipherText[CRYPTBLOCK_BYTE_LEN];
+	
+	if ( pKeyInfo->dwDataRestLen > 0 ){
+		dwLenToPad = CRYPTBLOCK_BYTE_LEN - pKeyInfo->dwDataRestLen;
+		if ( dwDataLen < dwLenToPad ){
+			memcpy( pKeyInfo->bDataRest, pbData, dwDataLen );
+			if ( !bFinal )
+				return TRUE;
+			else {
+				// Pad the block with zero.
+				memset( pKeyInfo->bDataRest + pKeyInfo->dwDataRestLen + dwDataLen, 0 , dwLenToPad - dwDataLen );
+			}
+
+		} else
+			memcpy( pKeyInfo->bDataRest, pbData, dwLenToPad );
+		decryptECB( pKeyInfo->bDataRest, pKeyInfo->bKey, bCipherText, pKeyInfo->params );
+		pKeyInfo->dwDataRestLen = 0;
+	}
+	BYTE* pbBlockToDecrypt = pbData + dwLenToPad; //< Next block to decrypt.
+	const BYTE* pbLastBlockBegin = pbData + dwDataLen - CRYPTBLOCK_BYTE_LEN; 
+	//< Last possible block to decrypt, actually convenient boundary for the while loop.
+	
+	BYTE* pbBlockToWrite = pbData; //< Block to which write decrypted data.
+	
+	// Encrypt data block by block until exhaust.
+	while( pbBlockToDecrypt <= pbLastBlockBegin ){
+		BYTE bTemp[CRYPTBLOCK_BYTE_LEN];
+		memcpy( bTemp, bCipherText, CRYPTBLOCK_BYTE_LEN );
+		decryptECB( pbBlockToDecrypt, pKeyInfo->bKey, bCipherText, pKeyInfo->params );
+		memcpy( pbBlockToWrite, bTemp, CRYPTBLOCK_BYTE_LEN );
+		pbBlockToWrite += CRYPTBLOCK_BYTE_LEN;
+	}
+	if ( !bFinal ){
+		pKeyInfo->dwDataRestLen = dwDataLen - (pbBlockToDecrypt - pbData);
+		memcpy( pKeyInfo->bDataRest, pbBlockToDecrypt, pKeyInfo->dwDataRestLen );
+		// Write last decrypted block.
+		memcpy( pbBlockToWrite, bCipherText, CRYPTBLOCK_BYTE_LEN );
+	} else {
+		// Pad the rest data and decrypt it.
+		BYTE bFinalBlock[CRYPTBLOCK_BYTE_LEN];
+		DWORD dwFinalDataLen = dwDataLen - (pbBlockToDecrypt - pbData);
+		memcpy( bFinalBlock, pbBlockToDecrypt, dwFinalDataLen );
+		memset( bFinalBlock + dwFinalDataLen, 0, CRYPTBLOCK_BYTE_LEN - dwFinalDataLen );
+		// Write last decrypted block.
+		memcpy( pbBlockToWrite, bCipherText, CRYPTBLOCK_BYTE_LEN );
+		pbBlockToWrite += CRYPTBLOCK_BYTE_LEN;
+		// Encrypt Data in proper and write it.
+		decryptECB( bFinalBlock, pKeyInfo->bKey, bCipherText, pKeyInfo->params );
+		memcpy( pbBlockToWrite, bCipherText, CRYPTBLOCK_BYTE_LEN );
+	}
+
+	return TRUE;
+
+}
+*/

@@ -175,10 +175,6 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
-				RelativePath=".\bignum\bignum.h"
-				>
-			</File>
-			<File
 				RelativePath=".\bignum\intel\bignum.h"
 				>
 			</File>
@@ -187,7 +183,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\bignum\bignum.h"
+				>
+			</File>
+			<File
 				RelativePath=".\constants.h"
+				>
+			</File>
+			<File
+				RelativePath=".\gost\crypt.h"
 				>
 			</File>
 			<File
@@ -235,11 +239,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\rand\rand.h"
+				RelativePath=".\rand\intel\rand.h"
 				>
 			</File>
 			<File
-				RelativePath=".\rand\intel\rand.h"
+				RelativePath=".\rand\rand.h"
 				>
 			</File>
 			<File
@@ -276,6 +280,10 @@
 			</File>
 			<File
 				RelativePath=".\bignum\intel\bignum.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\gost\crypt.cpp"
 				>
 			</File>
 			<File

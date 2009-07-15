@@ -308,646 +308,89 @@ bool testHashDataLong(bool bVerbose){
 	return true;
 
 }
-/*
-bool test(){
 
-//    HANDLE         hEvent;
-    HCRYPTPROV     hProv;
-    HCRYPTKEY      hKey;
-    HCRYPTKEY      hKey2;
-    HCRYPTPROV     hHash;
-    HCRYPTKEY      hPub;
-    HCRYPTKEY      hUser;
-    CHAR           pszMyName[64];
-//    HFILE          hFile;
-//    OFSTRUCT       ImageInfoBuf;
-
-    printf("Calling CryptAcquireContext - ");
-	if (RCRYPT_FAILED(CryptAcquireContext(&hProv, NULL,
-                          "CSP Provider", 900, 0)))
-	{
-        printf("CryptAcquireConext returned error %x\n", GetLastError());
-        printf("FAILED\n");
-		getchar();
-		return(TRUE);
-	}
-	else
-	    printf("SUCCEED\n");
-
-    printf("Calling CryptGenKey - ");
-	if (RCRYPT_FAILED(CryptGenKey(hProv,
-					  CALG_GOST_SIGN,
-				      0,
-				      &hKey)))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
-	}
-	else
-	{
-        printf("SUCCEED\n");
-    }
-
-    printf("Calling CryptDestroyKey - ");
-	if (RCRYPT_FAILED(CryptDestroyKey(hKey)))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
-	}
-	else
-	{
-        printf("SUCCEED\n");
-    }
-
-//
-//	Create key for other calls to functions
-//
-    printf("Calling CryptGenKey - ");
-	if ( !CryptGenKey(hProv,
-					  CALG_GOST_SIGN,
-				      0,
-				      &hKey))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-	        printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
-	}
-	else
-	{
-        printf("SUCCEED\n");
-    }
-
-    printf("Calling CryptSetKeyParam - ");
-	if (RCRYPT_FAILED(CryptSetKeyParam(hKey,
-					   PARAMETER2,
-					   (BYTE *) PARAMETER3,
-					   PARAMETER4)))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
-	}
-	else
-	{
-        printf("SUCCEED\n");
-    }
-
-    printf("Calling CryptGetKeyParam - ");
-	if (RCRYPT_FAILED(CryptGetKeyParam(hKey,
-					   PARAMETER2,
-					   (BYTE *) PARAMETER3,
-					   (DWORD *) PARAMETER4,
-					   PARAMETER5)))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
-	}
-	else
-	{
-        printf("SUCCEED\n");
-    }
-
-    printf("Calling CryptSetProvParam - ");
-	if (RCRYPT_FAILED(CryptSetProvParam(hProv,
-					    PARAMETER2,
-					    (BYTE *) PARAMETER3,
-					    PARAMETER4)))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
-	}
-	else
-	{
-        printf("SUCCEED\n");
-    }
-
-    printf("Calling CryptGetProvParam - ");
-	if (RCRYPT_FAILED(CryptGetProvParam(hProv,
-					    PARAMETER2,
-					    (BYTE *) PARAMETER3,
-					    (DWORD *) PARAMETER4,
-					    PARAMETER5)))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
-	}
-	else
-	{
-        printf("SUCCEED\n");
-    }
-
-
-    printf("Calling CryptGenRandom - ");
-	BYTE bRandValue[50];
-	for (unsigned i=0; i<50; i++)
-		bRandValue[i] = 0;
-
-	if (RCRYPT_FAILED(CryptGenRandom(hProv,
-					 50,
-					 bRandValue)))
-	{
-
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
-	}
-	else
-	{
-
-		printf("SUCCEED\n");
-#ifdef _TEST_GENRANDOM
-		std::cout << "Generated value:" << std::endl;
-		for (unsigned i=0; i< 50; i++)
-			std::cout << std::hex << (int)bRandValue[i];
-		std::cout << std::endl;
-#endif
-    }
-
-	// cheeck CPGenRandom for producing diffferent random numbers
-    printf("Calling CryptGenRandom - ");
-	//BYTE bRandValue[50];
-	if (RCRYPT_FAILED(CryptGenRandom(hProv,
-					 50,
-					 bRandValue)))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
-	}
-	else
-	{
-        printf("SUCCEED\n");
-#ifdef _TEST_GENRANDOM
-		std::cout << "Generated value:" << std::endl;
-		for (unsigned i=0; i< 50; i++)
-			std::cout << std::hex << (int)bRandValue[i];
-		std::cout << std::endl;
-#endif
-    }
-
-
-
-    printf("Calling CryptGetUserKey - ");
-    if (RCRYPT_FAILED(CryptGetUserKey(hProv,
-				  AT_SIGNATURE,
-				  &hPub)))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
-	}
-	else
-	{
-        printf("SUCCEED\n");
-    }
-
-    printf("Calling CryptGenKey - ");
-	if (RCRYPT_FAILED(CryptGenKey(hProv,
-				      (int) PARAMETER2,
-				      PARAMETER3,
-				      &hKey)))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
-	}
-	else
-	{
-        printf("SUCCEED\n");
-    }
-
-    printf("Calling CryptExportKey - ");
-
-	DWORD dwKeyBlobSize =0;//eof( BLOBHEADER ) + 256/8 + sizeof( DWORD );
-
-	CryptExportKey(	hKey,
-					NULL,
-					PUBLICKEYBLOB,
-					0,
-					NULL,
-					&dwKeyBlobSize);
-	
-	BYTE *pbKeyBlob = new BYTE[dwKeyBlobSize];
-
-	if (RCRYPT_FAILED(CryptExportKey(hKey,
-					 NULL,
-					 PUBLICKEYBLOB,
-					 0,
-					 pbKeyBlob,
-					 &dwKeyBlobSize)))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
-	}
-	else
-	{
-        printf("SUCCEED\n");
-    }
-
-    printf("Calling CryptImportKey - ");
-	if (RCRYPT_FAILED(CryptImportKey(hProv,
-					 pbKeyBlob,
-					 dwKeyBlobSize,
-					 NULL,
-					 0,
-					 &hKey2)))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
-	}
-	else
-	{
-        printf("SUCCEED\n");
-    }
-
-#ifdef _TEST_CREATEHASH
-    printf("Calling CryptCreateHash - ");
-	if (RCRYPT_FAILED(CryptCreateHash(hProv,
-					  CALG_GOST_HASH,
-					  0,
-					  0,
-					  &hHash)))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
-	}
-	else
-	{
-        printf("SUCCEED\n");
-    }
-	DestroyHash( hHash );
-#endif
-
-#ifdef _TEST_SETGETHASHPARAM
-
-	if (!CryptCreateHash(hProv,
-					  CALG_GOST_HASH,
-					  0,
-					  0,
-					  &hHash))
-	{
-		printf ("CreateHash fault\n");
-	}
-	BYTE bHashVal[32+1] = "\x2D\xFB\xC1\xB3\x72\xD8\x9A\x11\x88\xC0\x9C\x52\xE0\xEE\xC6\x1F\xCE\x52\x03\x2A\xB1\x02\x2E\x8E\x67\xEC\xE6\x67\x2B\x04\x3E\xE5";
-	std::cout << "Supplied hash value is: \n" <<  bHashVal << std::endl;
-
-
-	printf("Calling CryptSetHashParam - ");
-	if ( !CryptSetHashParam(
-		hHash,
-		HP_HASHVAL,
-		bHashVal,
-		0))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
-	}
-	else
-	{
-        printf("SUCCEED\n");
-    }
-
-    printf("Calling CryptGetHashParam - ");
-
-		std::cout << "Getting hash size" << std::endl;
-
-	DWORD dwHashSize;
-	DWORD dwTemp = 4;
-	if ( !CryptGetHashParam(hHash,
-					    HP_HASHSIZE,
-					    (BYTE *) &dwHashSize,
-					    &dwTemp,
-					    0))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
-	}
-	else
-	{
-
-		std::cout << "Hash size is " << dwHashSize << std::endl;
-
-        printf("SUCCEED\n");
-    }
-
-
-		std::cout << "Getting hash value " << dwHashSize << std::endl;
-		memset( bHashVal, 0, 32 );
-
-
-	if ( !CryptGetHashParam(hHash,
-					    HP_HASHVAL,
-					    bHashVal,
-					    &dwHashSize,
-					    0))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
-	}
-	else
-	{
-		std::cout << "\nHash value is: \n" << bHashVal << std::endl;
-        printf("SUCCEED\n");
-    }
-	CryptDestroyHash( hHash );
-#endif
-#ifdef _TEST_HASH
-
-	if (!CryptCreateHash(hProv,
-		CALG_GOST_HASH,
+bool testCrypt(const unsigned uiVerboseLevel){
+	HCRYPTKEY hKey = NULL;
+	if ( !CryptGenKey( hProv,
+		CALG_GOST_CRYPT,
 		0,
+		&hKey) )
+	{
+		if ( uiVerboseLevel > 0 )
+			std::cout << "CryptGenKey failed" << std::endl;
+		return false;
+	}
+	const DWORD cdwPlainTextLen = 70;
+	const DWORD cdwBufLen = 170;
+	DWORD dwDataLen = cdwPlainTextLen;
+	BYTE *pbData = new BYTE[cdwBufLen];
+	BYTE *pbDataCopy = new BYTE[dwDataLen];
+	if ( !CryptGenRandom( hProv,
+		dwDataLen, 
+		pbData) )
+	{
+
+		if ( uiVerboseLevel > 0 )
+			std::cout << "CryptGenRandom failed" << std::endl;
+		return false;
+	}
+	memcpy( pbDataCopy, pbData, dwDataLen );
+
+	if ( uiVerboseLevel > 1 ){
+		print( std::cout, pbData, dwDataLen );
+	}
+
+	if ( !CryptEncrypt(
+		hKey,
 		0,
-		&hHash))
-
+		TRUE,
+		0,
+		pbData,
+		&dwDataLen,
+		cdwBufLen))
 	{
-		printf( "CryptCreateHash fault"); 
-	}
-	printf("Calling CryptHashData\n");
-	DWORD dwHashSize =40;
-	BYTE bHashVal[40+1] = "setyb 23=htgnel ,egassem si sihT12345678"; //This is message, length=32 bytes";
-		//"\x2D\xFB\xC1\xB3\x72\xD8\x9A\x11\x88\xC0\x9C\x52\xE0\xEE\xC6\x1F\xCE\x52\x03\x2A\xB1\x02\x2E\x8E\x67\xEC\xE6\x67\x2B\x04\x3E\xE5";
-	std::cout << "Supplied hash value is: \n" <<  bHashVal << std::endl;
-
-
-	if ( !CryptHashData(hHash,
-		bHashVal,
-		dwHashSize,
-		0))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-		{
-			printf("Access violation\n");
-		}
-		else
-		{
-			printf("Test Failed\n");
-		}
-	}
-	else
-	{
-		printf("SUCCEED\n");
-		memset( bHashVal, 0, sizeof( bHashVal ) );
-		if ( !CryptGetHashParam(hHash,
-			HP_HASHVAL,
-			bHashVal,
-			&dwHashSize,
-			0))
-		{
-			printf("CryptGetHashParam Failed\n");
-		} else	{
-			std::cout << "\nHash value is: \n" << bHashVal << std::endl;
-			printf("SUCCEED\n");
-		}
-		CryptDestroyHash( hHash );
-
+		if ( uiVerboseLevel > 0 )
+			std::cout << "CryptEncrypt failed" << std::endl;
+		return false;
 	}
 
-
-#endif //_TEST_HASH
-
-
-    printf("Calling CryptHashSessionKey - ");
-	if (RCRYPT_FAILED(CryptHashSessionKey(hHash, hKey, PARAMETER3)))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
+	if ( uiVerboseLevel > 1 ){
+		print( std::cout, pbData, dwDataLen );
 	}
-	else
-	{
-        printf("SUCCEED\n");
-    }
 
-#ifdef _TEST_CRYPT_DECRYPT
-	DWORD dwCryptBlockLen = 0;
-    printf("Calling CryptEncrypt - \n");
-	std::cout << "Getting crypt block len" << std::endl;
-	if ( !CryptEncrypt(hKey,
-				       0,
-				       FALSE,
-				       0,
-				       NULL,
-				       &dwCryptBlockLen,
-				       0))
+	if ( !CryptDecrypt(
+		hKey,
+		0,
+		TRUE,
+		0,
+		pbData,
+		&dwDataLen))
 	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
+		if ( uiVerboseLevel > 0 )
+			std::cout << "CryptDecrypt failed" << std::endl;
+		return false;
 	}
-	else
-	{
-		std::cout << "Got crypt block len equal " <<  dwCryptBlockLen  << std::endl;
-        printf("SUCCEED\n");
-    }
-	BYTE* pbCryptData = new BYTE[dwCryptBlockLen];
-	std::cout << "Encrypting data, plain data is\n" << pbCryptData   << std::endl;
-	if ( !CryptEncrypt(hKey,
-				       0,
-				       TRUE,
-				       0,
-				       pbCryptData,
-				       &dwCryptBlockLen,
-				       dwCryptBlockLen))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
+
+	if ( uiVerboseLevel > 1 ){
+		print( std::cout, pbData, dwDataLen );
 	}
-	else
-	{
-		std::cout << "Got encrypted data\n" << pbCryptData << std::endl;
-        printf("SUCCEED\n");
-    }
 
-    printf("Calling CryptDecrypt - \n");
-	if (!CryptDecrypt(hKey,
-				       0,
-				       TRUE,
-				       0,
-				       pbCryptData,
-				       &dwCryptBlockLen))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
+	/*if ( dwDataLen != cdwPlainTextLen ){
+		if ( uiVerboseLevel > 0 )
+			std::cout << "Length of decrypted text is not equal length of plaintext" << std::endl;
+		return false;
+	}*/
+
+	if ( memcmp( pbData, pbDataCopy, cdwPlainTextLen ) != 0 ){
+		if ( uiVerboseLevel > 0 )
+			std::cout << "Decrypted text and plaintext do not match" << std::endl;
+		return false;
 	}
-	else
-	{
-		std::cout << "Decrypting data, decrypt data is\n" << pbCryptData   << std::endl;
-		delete[] pbCryptData;
-        printf("SUCCEED\n");
-    }
-#endif // _TEST_CRYPTDECRYPT
-
-
-    printf("Calling CryptDeriveKey - ");
-	if (RCRYPT_FAILED(CryptDeriveKey(hProv,
-					 (int) PARAMETER2,
-					 0,
-					 0,
-					 &hKey2)))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
-	}
-	else
-	{
-        printf("SUCCEED\n");
-    }
-
-
-    printf("Calling CryptDestroyHash - ");
-	if (RCRYPT_FAILED(CryptDestroyHash(hHash)))
-	{
-		if (GetLastError() == ERROR_INVALID_PARAMETER)
-	    {
-		    printf("Access violation\n");
-        }
-        else
-        {
-		    printf("Test Failed\n");
-        }
-	}
-	else
-	{
-        printf("SUCCEED\n");
-    }
-
-	if (RCRYPT_FAILED(CryptReleaseContext(hProv, PARAMETER2)))
-	{
-        printf("CryptReleaseContext returned error %d\n", GetLastError());
-        printf("FAILED\n");
-	}
-	else
-	{
-        printf("SUCCEED\n");
-    }
-
-	getchar();
-	
 
 	return true;
-}
-*/
+}	
+
+
+
+
+

@@ -2,6 +2,7 @@
 
 #include "string-helpers.h"
 #include <iostream>
+#include <iomanip>
 
 inline int chartobyte ( const char c ){
 	if ( !isxdigit(c) )
@@ -31,4 +32,10 @@ void strtobyte(const char* sChar, BYTE* sOctet){
 			sOctet[i] = chartobyte(sChar[2*i])*16 + chartobyte(sChar[2*i+1]);
 		}
 	}
+}
+
+void print( std::ostream &os, const BYTE* pbData, const unsigned uiLen ){
+	for( unsigned i=0; i<uiLen; i++)
+		os << std::hex << std::setfill('0') << std::setw(2) << (int) pbData[i];
+	os << std::endl;
 }

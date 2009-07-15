@@ -7,7 +7,7 @@
 #include "hash.h"
 #include "constants.h"
 
-void digest(const byte* pBuf, const int iBufSize, byte *pDigest, const Params341194 *params){
+void digest(const byte* pBuf, const int iBufSize, byte *pDigest, const PARAMS_GOST_HASH *params){
 	hash( pBuf, iBufSize, pDigest );
 }
 

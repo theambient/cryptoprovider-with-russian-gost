@@ -3,6 +3,7 @@
 #include "bignum/bignum.h"
 #include "Params.h"
 #include "rand/rand.h"
+#include <windows.h>
 
 // функция вычисления хеша для произвольного блока данных, содержащягося в буфере buf длины iBufSize
 // параметры:
@@ -10,7 +11,7 @@
 //		iBufSize	- размер буфера данных в байтах
 //		pDigestMsg	- указатель на буфер размером 256 бит, в который будет записано значение хеш-функции
 //		params		- параметры вычисления хеш-функции
-void digest(const BYTE *pBuf, const int iBufSize, BYTE *pDigestMsg, const Params341194 *params);
+void digest(const BYTE *pBuf, const int iBufSize, BYTE *pDigestMsg, const PARAMS_GOST_HASH *params);
 
 // функция вычисления ЭЦП по ГОСТ Р 34.10-2001
 // параметры:

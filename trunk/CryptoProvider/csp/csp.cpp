@@ -314,14 +314,14 @@ CPGenKey(
 		SetLastError( NTE_FAIL );
 	}
 	try {
-		// Create the key context.
-		if ( !createKey( pProvCtx, &pKey ) ){
-			SetLastError( NTE_FAIL );
-			return FALSE;
-		}
 		switch ( Algid ) {
 			case CALG_GOST_SIGN:
 			case AT_SIGNATURE:
+				// Create the key context.
+				if ( !createKey( pProvCtx, &pKey ) ){
+					SetLastError( NTE_FAIL );
+					return FALSE;
+				}
 				// Fill in key context.
 				pKey->algId = CALG_GOST_SIGN;
 				pKey->dwKeySpec = AT_SIGNATURE;
@@ -334,11 +334,29 @@ CPGenKey(
 					return FALSE;
 				}
 				break;
-			case AT_KEYEXCHANGE:
-			case CALG_GOST_CRYPT:
 			case CALG_GOST_KEYX:
+			case AT_KEYEXCHANGE:
+				break;
+			case CALG_GOST_CRYPT:
+				// Create the key context.
+				if ( !createSimmKey( pProvCtx, &pKey ) ){
+					SetLastError( NTE_FAIL );
+					return FALSE;
+				}
+				// Fill in key context.
+				pKey->algId = CALG_GOST_CRYPT;
+				pKey->length = getKeyLen( Algid );
+				pKey->exportable = FALSE;
+
+				// Generate key.
+				if (!genSimmKey( pProvCtx, pKey ) ){
+					CPDestroyKey( hProv, HCRYPTKEY(pKey) );
+					return FALSE;
+				}
+				break;
+
 			default:
-				// this algs currently not supported
+				// this algs currently are not supported
 				SetLastError( NTE_BAD_ALGID );
 				return FALSE;
 		}
@@ -410,7 +428,17 @@ CPDestroyKey(
 	DEBUG(1,"_-_-_-_-_-_-_-_-_Destroying keys-_-_-_-_-_-_-_-_-\n");
 	PROV_CTX *pProvCtx = (PROV_CTX*) hProv;
 	KEY_INFO *pKey = (KEY_INFO*) hKey;
-	releaseKey( pProvCtx, pKey );
+	switch ( pKey->algId ){
+		case CALG_GOST_SIGN:
+			releaseKey( pProvCtx, pKey );
+			break;
+		case CALG_GOST_CRYPT:
+			releaseSimmKey( pProvCtx, pKey );
+			break;
+		default:
+			// unknown alg id.
+			DEBUG(0, "Unkmown alg id in CPDestroyKey" );
+	}
 	delete pKey;
 	DEBUG(1,"---------------Key has been destroyed---------------\n");
     return TRUE;
@@ -1149,14 +1177,50 @@ CPEncrypt(
     IN  DWORD cbBufLen)
 {
 	DEBUG(1,"_-_-_-_-_-_-_-_-_Encrypting data-_-_-_-_-_-_-_-_-\n");
+	PROV_CTX *pProvCtx = (PROV_CTX*) hProv;
+	KEY_INFO *pKey = (KEY_INFO*) hKey;
+	DWORD dwLen = 0;
+	if ( pbData == NULL && *pcbDataLen != 0 ){
+		SetLastError( NTE_INVALID_PARAMETER );
+		return FALSE;
+	}
+
+	if ( hHash != NULL ){
+		SetLastError( NTE_INVALID_PARAMETER );
+		return FALSE;
+	}
+
+	switch ( pKey->algId ) {
+		case CALG_GOST_CRYPT:
+			dwLen = getCryptDataLen( pProvCtx, pKey, *pcbDataLen, fFinal );
+			if ( dwLen == 0 ){
+				// Last error is set by getCryptDataLen.
+				return FALSE;
+			}
+			break;
+		default:
+			SetLastError( NTE_BAD_ALGID );
+			return FALSE;
+	}
+
 	if ( pbData == NULL ){
-		 *pcbDataLen = CRYPTBLOCK_BYTE_LEN;
+		 *pcbDataLen = dwLen;
 		 return TRUE;
-	} else {
-		if ( *pcbDataLen < CRYPTBLOCK_BYTE_LEN && ! fFinal ){
-			*pcbDataLen = CRYPTBLOCK_BYTE_LEN;
+	} else if ( cbBufLen < dwLen ){
+			*pcbDataLen = dwLen;
 			SetLastError( ERROR_MORE_DATA );
 			return FALSE;
+	} else {
+		switch ( pKey->algId ) {
+			case CALG_GOST_CRYPT:
+				if ( !encryptGOST( pProvCtx, pKey, pbData, pcbDataLen, fFinal ) ){
+					// LastError is set by encryptGOST.
+					return FALSE;
+				}
+				break;
+			default:
+				SetLastError( NTE_BAD_ALGID );
+				return FALSE;
 		}
 	}
 	DEBUG(1,"---------------Data has been encrypted---------------\n");
@@ -1195,18 +1259,50 @@ CPDecrypt(
     IN OUT LPBYTE pbData,
     IN OUT LPDWORD pcbDataLen)
 {
-	DEBUG(1,"_-_-_-_-_-_-_-_-_Encrypting data-_-_-_-_-_-_-_-_-\n");
+	DEBUG(1,"_-_-_-_-_-_-_-_-_Decrypting data-_-_-_-_-_-_-_-_-\n");
+	PROV_CTX *pProvCtx = (PROV_CTX*) hProv;
+	KEY_INFO *pKey = (KEY_INFO*) hKey;
+	DWORD dwLen = 0;
+	if ( pbData == NULL && *pcbDataLen != 0 ){
+		SetLastError( NTE_INVALID_PARAMETER );
+		return FALSE;
+	}
+
+	if ( hHash != NULL ){
+		SetLastError( NTE_INVALID_PARAMETER );
+		return FALSE;
+	}
+
+	switch ( pKey->algId ) {
+		case CALG_GOST_CRYPT:
+			dwLen = getCryptDataLen( pProvCtx, pKey, *pcbDataLen, fFinal );
+			break;
+		default:
+			SetLastError( NTE_BAD_ALGID );
+			return FALSE;
+	}
+
 	if ( pbData == NULL ){
-		 *pcbDataLen = CRYPTBLOCK_BYTE_LEN;
+		 *pcbDataLen = dwLen;
 		 return TRUE;
-	} else {
-		if ( *pcbDataLen < CRYPTBLOCK_BYTE_LEN && !fFinal){
-			*pcbDataLen = CRYPTBLOCK_BYTE_LEN;
+	} else if ( *pcbDataLen < dwLen ){
+			*pcbDataLen = dwLen;
 			SetLastError( ERROR_MORE_DATA );
 			return FALSE;
+	} else {
+		switch ( pKey->algId ) {
+			case CALG_GOST_CRYPT:
+				if ( !decryptGOST( pProvCtx, pKey, pbData, pcbDataLen, fFinal ) ){
+					// Last error is set by decryptGOST.
+					return FALSE;
+				}
+				break;
+			default:
+				SetLastError( NTE_BAD_ALGID );
+				return FALSE;
 		}
 	}
-	DEBUG(1,"---------------Data has been encrypted---------------\n");
+	DEBUG(1,"---------------Data has been decrypted---------------\n");
     return TRUE;
 }
 

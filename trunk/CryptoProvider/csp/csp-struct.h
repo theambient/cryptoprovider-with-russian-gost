@@ -6,22 +6,24 @@ typedef IppsBigNumState	PRIVATE_KEY;
 typedef IppsECCPState	PUBLIC_KEY;
 
 typedef struct _CONTAINER_IRZ {
-	//HANDLE hToken; //<handle to the file containing key pair.
-	CHAR szToken[200]; //<handle to the file containing key pair.
-	//BYTE pbPrKey[GOST_SIGN_BITS]; //<PrivateKey.
-	CHAR szUserID[20]; //<user ID, can be found under 
-		//[IDENT] section of EKEY.INI.
-	//KEY_INFO pUserKey;
+	CHAR szToken[200];				//< handle to the file containing key pair.
+	CHAR szUserID[20];				//< user ID, can be found under [IDENT] section of EKEY.INI.
 	Rand rand;
 } CONTAINER_IRZ;
 
 typedef struct _KEY_SIGN_INFO {
-	PUBLIC_KEY *pPubKey; //<Public key.
-	PRIVATE_KEY *pPrKey; //<Private key.
-	PARAMS_GOST_SIGN params; //<Key Params.
-	//bool bHasPrivate; //<true if key has private.
-	//bool bKeyModified;//<true if key was modified
+	PUBLIC_KEY *pPubKey;			//< Public key.
+	PRIVATE_KEY *pPrKey;			//< Private key.
+	PARAMS_GOST_SIGN params;		//< Key params.
 } KEY_SIGN_INFO;
+
+typedef struct _KEY_CRYPT_INFO {
+	BYTE bKey[CRYPTKEY_BYTE_LEN];	//< simmetric key 256 bits length.
+	//BYTE bDataRest[CRYPTBLOCK_BYTE_LEN]; //< contains the last block of not encrypted data 
+										// if data length are not divisable by CRYPTBLOCK_BYTE_LEN.
+	//DWORD dwDataRestLen;			//< actual length of bDataRest.
+	PARAMS_GOST_CRYPT params;		//< Key params.
+} KEY_CRYPT_INFO;
 
 typedef struct _HASH_SERVICE_INFO {
 	BYTE bDataHashed[HASH_BYTE_LEN];//< contains already hashed data, var H from GOST.

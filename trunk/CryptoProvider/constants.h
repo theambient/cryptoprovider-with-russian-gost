@@ -20,7 +20,9 @@
 #define HASH_BYTE_LEN 32
 
 // GOST 28147-89 encrypt/decrypt block length in bytes.
-#define CRYPTBLOCK_BYTE_LEN 32
+#define CRYPTBLOCK_BYTE_LEN 8
+// GOST 28147-89 encrypt/decrypt key length in bytes.
+#define CRYPTKEY_BYTE_LEN  32
 
 
 // length in bytes of GOST R 34.11-94 algorithm hash-function

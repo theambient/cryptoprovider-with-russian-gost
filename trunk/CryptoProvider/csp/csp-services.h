@@ -57,7 +57,7 @@ DWORD getKeyLen( ALG_ID algid );
 /*	\brief	Create the key context.
  *	
  *	\param	pProvCtx	Pointer to the a CSP context.
- *	\param	pKey		pointer to pointer to key to release.
+ *	\param	pKey		address where the key will be stored.
  *
  *	\return	TRUE if release succeeded, FALSE otherwise;
  *		more in last error.
@@ -247,10 +247,100 @@ BOOL releaseHash( PROV_CTX *pProvCtx,
  *	\param	pProvCtx	pointer to the CSP context.
  *	\param	pKey		address where the key will be stored.
  *
- *	\return	TRUE if key obtained, FALSE otherwise;
+ *	\return	TRUE if key has been obtained, FALSE otherwise;
  *		more in last error
  *
  */
 BOOL getUserKey( PROV_CTX *pProvCtx, KEY_INFO *pKey );
+
+/*	\brief	Create (allocate) simmetric (GOST 28147-89) key context.
+ *	
+ *	\param	pProvCtx	pointer to the CSP context.
+ *	\param	ppKey		address where the key context will be stored.
+ *
+ *	\return	TRUE if key context has been allocated, FALSE otherwise;
+ *		more in last error
+ *
+ */
+BOOL createSimmKey( PROV_CTX *pProvCtx, KEY_INFO **ppKey );
+
+/*	\brief	Generate simmetric (GOST 28147-89) key.
+ *	
+ *	\param	pProvCtx	pointer to the CSP context.
+ *	\param	pKey		pointer to the allocated key context.
+ *
+ *	\return	TRUE if key has been generated, FALSE otherwise;
+ *		more in last error
+ *
+ */
+BOOL genSimmKey( PROV_CTX *pProvCtx, KEY_INFO *pKey );
+
+/*	\brief	Release simmetric (GOST 28147-89) key.
+ *	
+ *	\param	pProvCtx	pointer to the CSP context.
+ *	\param	pKey		pointer to the key context.
+ *
+ *	\return	TRUE if key has been released, FALSE otherwise;
+ *		more in last error
+ *
+ */
+BOOL releaseSimmKey( PROV_CTX *pProvCtx, KEY_INFO *pKey );
+
+/*	\brief	Calculate size of GOST 28147-89 chiper text 
+ *				based on size of plaintext. 
+ *	
+ *	\param	pProvCtx	pointer to the CSP context.
+ *	\param	pKey		pointer to the key.
+ *	\param	dwDataLen	size of plaintext.
+ *	\param	bFinal		flag specifying that this is 
+ *							the last piece of data.
+ *
+ *	\return	size of chiper text  
+ *		more in last error
+ *
+ */
+DWORD getCryptDataLen( PROV_CTX *pProvCtx, const KEY_INFO *pKey, const DWORD dwDataLen, const BOOL bFinal );
+
+/*	\brief	Encrypt piece of data with the key pKey and 
+ *				in mode specified by key params.
+ *	
+ *	\param	pProvCtx	pointer to the CSP context.
+ *	\param	pKey		pointer to the key.
+ *	\param	pbData		pointer to the data to encrypt.
+ *	\param	pdwDataLen	pointer to the size of plaintext (pbData),
+							upon succeed contains size of ciphertext.
+ *	\param	bFinal		flag specifying that this is 
+ *							the last piece of data.
+ *
+ *	\return	TRUE if data has been successfully encrypted, 
+ *			FALSE otherwise;
+ *		more in last error
+ *
+ */
+BOOL encryptGOST( PROV_CTX *pProvCtx, KEY_INFO *pKey, BYTE* pbData, DWORD *pdwDataLen, const BOOL bFinal );
+
+/*	\brief	Decrypt piece of data with the key pKey and 
+ *				in mode specified by key params.
+ *	
+ *	\param	pProvCtx	pointer to the CSP context.
+ *	\param	pKey		pointer to the key.
+ *	\param	pbData		pointer to the data to encrypt.
+ *	\param	pdwDataLen	pointer to the size of ciphertext (pbData).
+ *	\param	bFinal		flag specifying that this is 
+ *							the last piece of data.
+ *
+ *	\return	TRUE if data has been successfully encrypted, 
+ *			FALSE otherwise;
+ *		more in last error
+ *
+ */
+BOOL decryptGOST( PROV_CTX *pProvCtx, KEY_INFO *pKey, BYTE* pbData, DWORD *dwDataLen, const BOOL bFinal );
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+///////////																	////////////////////
+///////////					INLINE FUNCTION IMPLEMENTATION					////////////////////
+///////////																	////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 #endif //_CSPSERVICES_HEADER_FILE

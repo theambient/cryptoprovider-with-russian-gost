@@ -9,23 +9,19 @@
 
 bool testAcquireContext(bool);
 
-bool testGenKey();
+bool testGenKey(bool);
 
-bool testGetProvParam();
+bool testGetProvParam(bool);
 
-bool testExportKey();
+bool testExportKey(bool);
 
-bool testImportKey();
+bool testImportKey(bool);
 
-bool testGetUserKey();
+bool testGetUserKey(bool);
 
-bool testDecrypt();
+bool testCrypt(unsigned uiVerboseLevel);
 
-bool testDecrypt();
-
-bool testDecrypt();
-
-bool testCreateHash();
+bool testCreateHash(bool);
 bool testHashData(bool);
 bool testHashDataLong(bool);
 bool testSignHash(bool);

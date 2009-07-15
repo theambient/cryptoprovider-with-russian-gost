@@ -53,28 +53,40 @@ void E_f(const byte A[], const byte K[], byte R[]) { // Функция f в ГОСТ 28147-8
 
 void E(const byte  D[], const byte K[], byte R[]) { // ГОСТ 28147-89
   Block32 A, B;                                //Инициализация блоков A и B
-  for (int i = 0; i < 4; i++) A[i] = D[i];
-  for (int i = 0; i < 4; i++) B[i] = D[i + 4];
+  for (int i = 0; i < 4; i++)
+	  A[i] = D[i];
+  for (int i = 0; i < 4; i++) 
+	  B[i] = D[i + 4];
 
   for (int step = 0; step < 3; step++)         // K1..K24 идут в прямом порядке - три цикла K1..K8
     for (int i = 0; i < 32; i += 4) {
-      Block32 tmp; E_f(A, K + i, tmp);              // (K + i) - массив K с i-го элемента
-      for (int i = 0; i < 4; i++) tmp[i] ^= B[i];
-      memcpy(B, A, sizeof A); memcpy(A, tmp, sizeof tmp);
+      Block32 tmp; 
+	  E_f(A, K + i, tmp);              // (K + i) - массив K с i-го элемента
+      for (int i = 0; i < 4; i++) 
+		  tmp[i] ^= B[i];
+      memcpy(B, A, sizeof A); 
+	  memcpy(A, tmp, sizeof tmp);
     }
   for (int i = 28; i >= 0; i -= 4) { // А K25..K32 идут в обратном порядке
-    Block32 tmp; E_f(A, K + i, tmp);
-    for (int i = 0; i < 4; i++) tmp[i] ^= B[i];
-    memcpy(B, A, sizeof A); memcpy(A, tmp, sizeof tmp);
+    Block32 tmp; 
+	E_f(A, K + i, tmp);
+    for (int i = 0; i < 4; i++) 
+		tmp[i] ^= B[i];
+    memcpy(B, A, sizeof A); 
+	memcpy(A, tmp, sizeof tmp);
   }
-  for (int i = 0; i < 4; i++) R[i] = B[i];      //Возвращаем результат
-  for (int i = 0; i < 4; i++) R[i + 4] = A[i];
+  for (int i = 0; i < 4; i++) //Возвращаем результат
+	  R[i] = B[i];      
+  for (int i = 0; i < 4; i++) 
+	  R[i + 4] = A[i];
 }
 
 // GOST R 34.11-94
 void A(byte Y[], byte R[]) {
-  for (int i = 0; i < 24; i++) R[i] = Y[i + 8];
-  for (int i = 0; i < 8; i++) R[i + 24] = Y[i] ^ Y[i + 8];
+  for (int i = 0; i < 24; i++) 
+	  R[i] = Y[i + 8];
+  for (int i = 0; i < 8; i++) 
+	  R[i + 24] = Y[i] ^ Y[i + 8];
 }
 
 int fi(int arg) { // Функция фи. Отличие от функции в статье - нумерация не 1..32, а 0..31
@@ -83,7 +95,8 @@ int fi(int arg) { // Функция фи. Отличие от функции в статье - нумерация не 1..3
   return (i << 3) + k - 1;
 }
 void P(byte Y[], byte R[]) {
-  for (int i = 0; i < 32; i++) R[i] = Y[fi(i)];
+  for (int i = 0; i < 32; i++)
+	  R[i] = Y[fi(i)];
 }
 
 void psi(byte arr[]) {
@@ -94,11 +107,14 @@ void psi(byte arr[]) {
   y16[0] ^= arr[ 6]; y16[1] ^= arr[ 7];
   y16[0] ^= arr[24]; y16[1] ^= arr[25];
   y16[0] ^= arr[30]; y16[1] ^= arr[31];
-  for (int i = 0; i < 30; i++) arr[i] = arr[i + 2];
-  arr[30] = y16[0]; arr[31] = y16[1];
+  for (int i = 0; i < 30; i++) 
+	  arr[i] = arr[i + 2];
+  arr[30] = y16[0]; 
+  arr[31] = y16[1];
 }
 void psi(byte arr[], int p) {
-  while (p--) psi(arr);
+  while (p--)
+	  psi(arr);
 }
 
 void stephash( const byte H[], const byte M[], byte newH[]) { // Функция f
@@ -140,13 +156,18 @@ void stephash( const byte H[], const byte M[], byte newH[]) { // Функция f
   Block U, V, W, K[4], tmp;
   memcpy(U, H, sizeof U);
   memcpy(V, M, sizeof V);
-  for (int i = 0; i < 32; i++) W[i] = U[i] ^ V[i];
+  for (int i = 0; i < 32; i++) 
+	  W[i] = U[i] ^ V[i];
   P(W, K[0]);
 
   for (int step = 1; step < 4; step++) {
-    A(U, tmp); for (int i = 0; i < 32; i++) U[i] = tmp[i] ^ C[step][i];
-    A(V, tmp); A(tmp, V);
-    for (int i = 0; i < 32; i++) W[i] = U[i] ^ V[i];
+    A(U, tmp); 
+	for (int i = 0; i < 32; i++) 
+		U[i] = tmp[i] ^ C[step][i];
+    A(V, tmp); 
+	A(tmp, V);
+    for (int i = 0; i < 32; i++) 
+		W[i] = U[i] ^ V[i];
     P(W, K[step]);
   }
 
@@ -154,8 +175,12 @@ void stephash( const byte H[], const byte M[], byte newH[]) { // Функция f
   for (int i = 0; i < 32; i += 8)
     E(H + i, K[i >> 3], S + i);
 
-  psi(S, 12); for (int i = 0; i < 32; i++) S[i] ^= M[i];
-  psi(S, 1 ); for (int i = 0; i < 32; i++) S[i] ^= H[i];
+  psi(S, 12);
+  for (int i = 0; i < 32; i++) 
+	  S[i] ^= M[i];
+  psi(S, 1 ); 
+  for (int i = 0; i < 32; i++)
+	  S[i] ^= H[i];
   psi(S, 61);
   memcpy(newH, S, sizeof S);
 }
@@ -168,8 +193,10 @@ void hash(const byte buf[], const int len, byte result[]) {
   memset(H, 0, sizeof H);
 
   while ((posIB < len) || pos) {
-    if (posIB < len) block[pos++] = buf[posIB++];
-    else block[pos++] = 0;
+    if (posIB < len) 
+		block[pos++] = buf[posIB++];
+    else 
+		block[pos++] = 0;
     if (pos == 32) {
       pos = 0;
 
@@ -190,6 +217,8 @@ void hash(const byte buf[], const int len, byte result[]) {
     L[i] = c & 0xFF;
     c >>= 8;
   }
-  stephash(H, L, newH); memcpy(H, newH, sizeof newH);
-  stephash(H, Sum, newH); memcpy(result, newH, sizeof newH);
+  stephash(H, L, newH);
+  memcpy(H, newH, sizeof newH);
+  stephash(H, Sum, newH); 
+  memcpy(result, newH, sizeof newH);
 }

@@ -50,6 +50,11 @@ int main(int cArg, char *rgszArg[])
 	else
 		std::cout << "CryptHashData long data test FAULT" << std::endl;;	
 
+	if ( testCrypt( 2 ) )
+		std::cout << "CryptEncryptDecrypt test SUCCEEDED" << std::endl;
+	else
+		std::cout << "CryptEncryptDecrypt test FAULT" << std::endl;;	
+
 	getchar();
 	return(0);
 }
